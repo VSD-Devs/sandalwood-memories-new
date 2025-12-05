@@ -64,24 +64,34 @@ export interface Media {
 
 // Memorial operations
 export async function getMemorials(limit = 50, offset = 0) {
-  const result = await getSql()`
-    SELECT m.*, u.name as creator_name, u.email as creator_email
-    FROM memorials m
-    LEFT JOIN users u ON m.created_by = u.id
-    ORDER BY m.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `
-  return result as (Memorial & { creator_name: string; creator_email: string })[]
+  try {
+    const result = await getSql()`
+      SELECT m.*, u.name as creator_name, u.email as creator_email
+      FROM memorials m
+      LEFT JOIN users u ON m.created_by = u.id
+      ORDER BY m.created_at DESC
+      LIMIT ${limit} OFFSET ${offset}
+    `
+    return result as (Memorial & { creator_name: string; creator_email: string })[]
+  } catch (error) {
+    console.warn('Database not available, returning empty array:', error)
+    return []
+  }
 }
 
 export async function getMemorialById(id: string) {
-  const result = await getSql()`
-    SELECT m.*, u.name as creator_name, u.email as creator_email
-    FROM memorials m
-    LEFT JOIN users u ON m.created_by = u.id
-    WHERE m.id = ${id}
-  `
-  return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+  try {
+    const result = await getSql()`
+      SELECT m.*, u.name as creator_name, u.email as creator_email
+      FROM memorials m
+      LEFT JOIN users u ON m.created_by = u.id
+      WHERE m.id = ${id}
+    `
+    return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+  } catch (error) {
+    console.warn('Database not available:', error)
+    return undefined
+  }
 }
 
 export async function getMemorialBySlug(slug: string) {

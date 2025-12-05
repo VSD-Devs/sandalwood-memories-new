@@ -39,25 +39,35 @@ export async function verifyPassword(plain: string, hash: string): Promise<boole
 }
 
 export async function getUserByEmail(email: string): Promise<(AuthUser & { password_hash: string; provider_user_id: string | null }) | null> {
-  const rows = await getSql()`
-    SELECT id, email, name, password_hash, provider_user_id, email_verified, created_at, updated_at
-    FROM users
-    WHERE email = ${email}
-    LIMIT 1
-  `
-  const row = rows[0] as any
-  if (!row) return null
-  return row
+  try {
+    const rows = await getSql()`
+      SELECT id, email, name, password_hash, provider_user_id, email_verified, created_at, updated_at
+      FROM users
+      WHERE email = ${email}
+      LIMIT 1
+    `
+    const row = rows[0] as any
+    if (!row) return null
+    return row
+  } catch (error) {
+    console.warn('Database not available for user lookup:', error)
+    return null
+  }
 }
 
 export async function createUser(email: string, name: string, password: string): Promise<AuthUser> {
-  const password_hash = await hashPassword(password)
-  const rows = await getSql()`
-    INSERT INTO users (email, name, password_hash)
-    VALUES (${email}, ${name}, ${password_hash})
-    RETURNING id, email, name, email_verified, created_at, updated_at
-  `
-  return rows[0] as AuthUser
+  try {
+    const password_hash = await hashPassword(password)
+    const rows = await getSql()`
+      INSERT INTO users (email, name, password_hash)
+      VALUES (${email}, ${name}, ${password_hash})
+      RETURNING id, email, name, email_verified, created_at, updated_at
+    `
+    return rows[0] as AuthUser
+  } catch (error) {
+    console.error('Database not available for user creation:', error)
+    throw new Error('Database temporarily unavailable')
+  }
 }
 
 export async function markUserVerifiedByEmail(email: string): Promise<void> {
@@ -76,16 +86,21 @@ export async function createSession(userId: string): Promise<{ token: string; ex
 }
 
 export async function getUserBySessionToken(token: string): Promise<AuthUser | null> {
-  const rows = await getSql()`
-    SELECT u.id, u.email, u.name, u.email_verified, u.created_at, u.updated_at
-    FROM sessions s
-    JOIN users u ON u.id = s.user_id
-    WHERE s.session_token = ${token} AND s.expires_at > NOW()
-    LIMIT 1
-  `
-  const row = rows[0] as any
-  if (!row) return null
-  return row as AuthUser
+  try {
+    const rows = await getSql()`
+      SELECT u.id, u.email, u.name, u.email_verified, u.created_at, u.updated_at
+      FROM sessions s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.session_token = ${token} AND s.expires_at > NOW()
+      LIMIT 1
+    `
+    const row = rows[0] as any
+    if (!row) return null
+    return row as AuthUser
+  } catch (error) {
+    console.warn('Database not available for session lookup:', error)
+    return null
+  }
 }
 
 export async function revokeSession(token: string): Promise<void> {
