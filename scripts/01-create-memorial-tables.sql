@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS memorials (
   biography TEXT,
   cover_image_url TEXT,
   profile_image_url TEXT,
-  created_by TEXT REFERENCES neon_auth.users_sync(id),
+  is_alive BOOLEAN DEFAULT false,
+  burial_location TEXT,
+  created_by UUID REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   is_public BOOLEAN DEFAULT true,
@@ -32,10 +34,10 @@ CREATE TABLE IF NOT EXISTS media (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   memorial_id UUID REFERENCES memorials(id) ON DELETE CASCADE,
   file_url TEXT NOT NULL,
-  file_type TEXT NOT NULL CHECK (file_type IN ('image', 'video')),
+  file_type TEXT NOT NULL CHECK (file_type IN ('image', 'video', 'document')),
   title TEXT,
   description TEXT,
-  uploaded_by TEXT REFERENCES neon_auth.users_sync(id),
+  uploaded_by UUID REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

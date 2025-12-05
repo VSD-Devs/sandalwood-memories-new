@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { updateMemorialUsage } from "@/lib/usage-limits"
 
 function getSql() {
   const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
@@ -12,6 +13,39 @@ function getSql() {
     } catch {}
   }
   return null
+}
+
+async function getMemorialMediaCounts(memorialId: string) {
+  const sql = getSql()
+  if (!sql) return { photo_count: 0, video_count: 0, media_count: 0 }
+
+  const result = await sql`
+    SELECT 
+      COUNT(*) FILTER (WHERE file_type = 'image') as photo_count,
+      COUNT(*) FILTER (WHERE file_type = 'video') as video_count,
+      COUNT(*) as media_count
+    FROM media 
+    WHERE memorial_id = ${memorialId}
+  `
+  
+  return {
+    photo_count: Number(result[0]?.photo_count || 0),
+    video_count: Number(result[0]?.video_count || 0),
+    media_count: Number(result[0]?.media_count || 0)
+  }
+}
+
+async function getMemorialOwner(memorialId: string): Promise<string | null> {
+  const sql = getSql()
+  if (!sql) return null
+
+  const result = await sql`
+    SELECT created_by
+    FROM memorials 
+    WHERE id = ${memorialId}
+  `
+  
+  return result[0]?.created_by || null
 }
 
 export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
@@ -40,7 +74,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const body = await request.json()
     const items: Array<{
       file_url: string
-      file_type: "image" | "video"
+      file_type: "image" | "video" | "document"
       title?: string | null
       description?: string | null
       uploaded_by?: string | null
@@ -53,7 +87,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     // Basic validation: accept only images for now when URL is a data URL
     const sanitized = items.map((it) => ({
       file_url: String(it.file_url || "").trim(),
-      file_type: it.file_type === "video" ? "video" : "image",
+      file_type: it.file_type === "video" ? "video" : it.file_type === "document" ? "document" : "image",
       title: it.title && String(it.title).trim() !== "" ? String(it.title) : null,
       description: it.description && String(it.description).trim() !== "" ? String(it.description) : null,
       uploaded_by: it.uploaded_by && String(it.uploaded_by).trim() !== "" ? String(it.uploaded_by) : null,
@@ -87,7 +121,27 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       })
     )
 
-    return NextResponse.json({ items: inserted.filter(Boolean) })
+    const validInserted = inserted.filter(Boolean)
+    
+    // Update memorial usage statistics after successful media insertion
+    if (validInserted.length > 0) {
+      try {
+        const memorialOwner = await getMemorialOwner(id)
+        if (memorialOwner) {
+          const mediaCounts = await getMemorialMediaCounts(id)
+          await updateMemorialUsage(memorialOwner, Number(id), {
+            mediaCount: mediaCounts.media_count,
+            photoCount: mediaCounts.photo_count,
+            videoCount: mediaCounts.video_count
+          })
+        }
+      } catch (error) {
+        console.error("Failed to update memorial usage statistics:", error)
+        // Don't fail the media upload if usage update fails
+      }
+    }
+
+    return NextResponse.json({ items: validInserted })
   } catch (err) {
     console.error("Create media error:", err)
     return NextResponse.json({ error: "Failed to create media" }, { status: 500 })

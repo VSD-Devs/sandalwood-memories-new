@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     // issue/update CSRF cookie alongside session checks
     const csrf = createCsrfToken()
     const res = NextResponse.json({ user: { id: user.id, email: user.email, name: user.name, emailVerified: user.email_verified } })
-    res.cookies.set(getCsrfCookieName(), csrf, { httpOnly: false, sameSite: "lax", secure: true, path: "/" })
+    res.cookies.set(getCsrfCookieName(), csrf, { httpOnly: false, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/" })
     return res
   } catch (error) {
     console.error("me error", error)

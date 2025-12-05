@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { QrCode, Download, Printer, Copy, Check } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import QRCode from "qrcode"
 
 interface QRCodeGeneratorProps {
   memorialUrl: string
@@ -19,65 +20,59 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
   const [qrSize, setQrSize] = useState("200")
   const [customMessage, setCustomMessage] = useState(`Scan to visit ${memorialName}'s memorial`)
   const [copied, setCopied] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { toast } = useToast()
 
-  // Generate QR code using canvas (simplified version - in production use a proper QR library)
-  const generateQRCode = (text: string, size: number) => {
+  // Generate QR code using the qrcode library
+  const generateQRCode = async (text: string, size: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
 
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    canvas.width = size
-    canvas.height = size
-
-    // Create a simple pattern (in production, use a proper QR code library like qrcode.js)
-    ctx.fillStyle = "#ffffff"
-    ctx.fillRect(0, 0, size, size)
-
-    ctx.fillStyle = "#000000"
-    const moduleSize = size / 25
-
-    // Create a mock QR pattern
-    for (let i = 0; i < 25; i++) {
-      for (let j = 0; j < 25; j++) {
-        if (Math.random() > 0.5) {
-          ctx.fillRect(i * moduleSize, j * moduleSize, moduleSize, moduleSize)
-        }
-      }
+    setIsGenerating(true)
+    try {
+      await QRCode.toCanvas(canvas, text, {
+        width: size,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#ffffff'
+        },
+        errorCorrectionLevel: 'M'
+      })
+    } catch (error) {
+      console.error('Error generating QR code:', error)
+      toast({
+        title: "QR Generation Failed",
+        description: "Unable to generate QR code. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsGenerating(false)
     }
-
-    // Add corner squares (finder patterns)
-    const cornerSize = moduleSize * 7
-    ctx.fillStyle = "#000000"
-    ctx.fillRect(0, 0, cornerSize, cornerSize)
-    ctx.fillRect(size - cornerSize, 0, cornerSize, cornerSize)
-    ctx.fillRect(0, size - cornerSize, cornerSize, cornerSize)
-
-    ctx.fillStyle = "#ffffff"
-    const innerSize = moduleSize * 5
-    const offset = moduleSize
-    ctx.fillRect(offset, offset, innerSize, innerSize)
-    ctx.fillRect(size - cornerSize + offset, offset, innerSize, innerSize)
-    ctx.fillRect(offset, size - cornerSize + offset, innerSize, innerSize)
-
-    ctx.fillStyle = "#000000"
-    const centerSize = moduleSize * 3
-    const centerOffset = moduleSize * 2
-    ctx.fillRect(centerOffset, centerOffset, centerSize, centerSize)
-    ctx.fillRect(size - cornerSize + centerOffset, centerOffset, centerSize, centerSize)
-    ctx.fillRect(centerOffset, size - cornerSize + centerOffset, centerSize, centerSize)
   }
 
-  const handleGenerate = () => {
-    generateQRCode(memorialUrl, Number.parseInt(qrSize))
+  const handleGenerate = async () => {
+    await generateQRCode(memorialUrl, Number.parseInt(qrSize))
   }
+
+  // Auto-generate QR code when dialog opens or settings change
+  useEffect(() => {
+    if (isOpen) {
+      handleGenerate()
+    }
+  }, [isOpen, qrSize, memorialUrl])
 
   const handleDownload = () => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || isGenerating) {
+      toast({
+        title: "Download Failed",
+        description: "Please wait for QR code generation to complete.",
+        variant: "destructive",
+      })
+      return
+    }
 
     // Create a larger canvas with text
     const downloadCanvas = document.createElement("canvas")
@@ -109,7 +104,7 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
     // Download
     const link = document.createElement("a")
     link.download = `${memorialName.replace(/\s+/g, "-")}-memorial-qr.png`
-    link.href = downloadCanvas.toDataURL()
+    link.href = downloadCanvas.toDataURL("image/png", 1.0)
     link.click()
 
     toast({
@@ -138,12 +133,26 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
 
   const handlePrint = () => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || isGenerating) {
+      toast({
+        title: "Print Failed",
+        description: "Please wait for QR code generation to complete.",
+        variant: "destructive",
+      })
+      return
+    }
 
     const printWindow = window.open("", "_blank")
-    if (!printWindow) return
+    if (!printWindow) {
+      toast({
+        title: "Print Failed",
+        description: "Unable to open print window. Please check your browser settings.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    const img = canvas.toDataURL()
+    const img = canvas.toDataURL("image/png", 1.0)
     printWindow.document.write(`
       <html>
         <head>
@@ -161,11 +170,17 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
               padding: 20px;
               border-radius: 8px;
               background: white;
+              max-width: 100%;
+            }
+            .qr-image {
+              max-width: 100%;
+              height: auto;
             }
             .message {
               margin: 20px 0 10px 0;
               font-size: 18px;
               font-weight: bold;
+              color: #000;
             }
             .url {
               margin: 10px 0;
@@ -175,12 +190,13 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
             }
             @media print {
               body { margin: 0; }
+              .qr-container { border: 1px solid #000; }
             }
           </style>
         </head>
         <body>
           <div class="qr-container">
-            <img src="${img}" alt="Memorial QR Code" />
+            <img src="${img}" alt="Memorial QR Code" class="qr-image" />
             <div class="message">${customMessage}</div>
             <div class="url">${memorialUrl}</div>
           </div>
@@ -228,13 +244,27 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleGenerate} className="w-full">
-              Generate QR Code
+            <Button onClick={handleGenerate} className="w-full" disabled={isGenerating}>
+              {isGenerating ? "Generating..." : "Regenerate QR Code"}
             </Button>
           </div>
 
-          <div className="text-center">
-            <canvas ref={canvasRef} className="border border-border rounded-lg mx-auto" style={{ maxWidth: "100%" }} />
+          <div className="text-center relative">
+            <canvas 
+              ref={canvasRef} 
+              className="border border-border rounded-lg mx-auto bg-white" 
+              style={{ 
+                maxWidth: "100%", 
+                height: "auto",
+                display: "block",
+                minHeight: qrSize + "px"
+              }} 
+            />
+            {isGenerating && (
+              <div className="absolute inset-0 flex items-center justify-center bg-white/80 rounded-lg">
+                <div className="text-sm text-muted-foreground">Generating QR code...</div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-2">
@@ -247,11 +277,11 @@ export default function QRCodeGenerator({ memorialUrl, memorialName }: QRCodeGen
           </div>
 
           <div className="flex space-x-2">
-            <Button onClick={handleDownload} className="flex-1">
+            <Button onClick={handleDownload} className="flex-1" disabled={isGenerating}>
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>
-            <Button onClick={handlePrint} variant="outline" className="flex-1 bg-transparent">
+            <Button onClick={handlePrint} variant="outline" className="flex-1 bg-transparent" disabled={isGenerating}>
               <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>

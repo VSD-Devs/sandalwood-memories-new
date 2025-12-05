@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Heart, ArrowLeft, CalendarIcon, Upload, Eye } from "lucide-react"
+import { Heart, ArrowLeft, CalendarIcon, Upload, Eye, Info } from "lucide-react"
 import Link from "next/link"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
@@ -25,16 +25,16 @@ interface MemorialData {
   subtitle: string
   birthDate: Date | undefined
   passedDate: Date | undefined
-  biography: string
   relationship: string
   profileImage: string
   coverImage: string
   theme: string
   isAlive: boolean
+  burialLocation?: string | null
 }
 
 export default function CreateMemorialPage() {
-  const { user } = useAuth()
+  const { user, isLoading: authLoading } = useAuth()
   const router = useRouter()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -54,12 +54,12 @@ export default function CreateMemorialPage() {
     subtitle: "",
     birthDate: undefined,
     passedDate: undefined,
-    biography: "",
     relationship: "",
     profileImage: "",
     coverImage: "",
     theme: "classic",
     isAlive: false,
+    burialLocation: null,
   })
 
   const handleInputChange = (field: keyof MemorialData, value: any) => {
@@ -93,33 +93,34 @@ export default function CreateMemorialPage() {
       const response = await fetch("/api/memorials", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include', // Ensure cookies are sent for authentication
         body: JSON.stringify({
           full_name: memorialData.name,
           title: memorialData.subtitle || memorialData.name,
           birth_date: memorialData.birthDate?.toISOString().slice(0, 10) || null,
           death_date: memorialData.isAlive ? null : memorialData.passedDate?.toISOString().slice(0, 10) || null,
-          biography: memorialData.biography || null,
           theme: memorialData.theme,
           profile_image_url: memorialData.profileImage || null,
           cover_image_url: memorialData.coverImage || null,
-          created_by: user.id || "anonymous",
           is_alive: memorialData.isAlive,
+          burial_location: memorialData.burialLocation?.trim() || null,
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create memorial")
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        
+        if (response.status === 401) {
+          throw new Error("Please sign in to create a memorial")
+        }
+        
+        throw new Error(errorData.error || "Failed to create memorial")
       }
 
       const data = await response.json()
-      try {
-        const raw = localStorage.getItem("my-memorial-ids") || "[]"
-        const savedIds: string[] = Array.isArray(JSON.parse(raw)) ? JSON.parse(raw) : []
-        if (!savedIds.includes(data.id)) {
-          localStorage.setItem("my-memorial-ids", JSON.stringify([data.id, ...savedIds]))
-        }
-      } catch {}
-      router.push(`/memorial/${data.id}`)
+      // Use slug for URL if available, otherwise fall back to ID
+      const memorialUrl = data.slug ? `/memorial/${data.slug}` : `/memorial/${data.id}`
+      router.push(memorialUrl)
     } catch (error) {
       console.error("Error creating memorial:", error)
     } finally {
@@ -127,19 +128,48 @@ export default function CreateMemorialPage() {
     }
   }
 
+  // Show authentication prompt for non-logged in users
+  if (!authLoading && !user) {
+    return (
+      <div className="min-h-screen bg-[#F5F5F0] flex items-center justify-center">
+        <Card className="w-full max-w-md border border-slate-100 shadow-lg bg-white rounded-3xl">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-[#E8F0F5] flex items-center justify-center mb-4">
+              <Heart className="h-6 w-6 text-[#4A90A4]" />
+            </div>
+            <CardTitle className="font-serif text-[#1B3B5F]">Sign in required</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-slate-600">
+              Please sign in to create a memorial.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Link href="/">
+                <Button className="w-full !bg-[#1B3B5F] hover:!bg-[#16304d] !text-white rounded-full">Go to homepage</Button>
+              </Link>
+              <p className="text-sm text-slate-600">
+                You can sign in from the homepage
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="min-h-screen bg-memorial-bg">
+    <div className="min-h-screen bg-[#F5F5F0]">
       {/* Header */}
-      <header className="border-b border-border/50 bg-white/80 backdrop-blur-sm">
+      <header className="border-b border-slate-200 bg-white/85 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link href="/memorial" className="flex items-center space-x-2">
-              <ArrowLeft className="h-5 w-5 text-muted-foreground" />
-              <Heart className="h-8 w-8 text-primary" />
-              <span className="font-serif font-bold text-2xl text-foreground">Sandalwood Memories</span>
+              <ArrowLeft className="h-5 w-5 text-slate-600" />
+              <Heart className="h-8 w-8 text-[#4A90A4]" />
+              <span className="font-serif font-bold text-2xl text-[#1B3B5F]">Sandalwood Memories</span>
             </Link>
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-muted-foreground">Step {step} of 3</div>
+              <div className="text-sm text-slate-600">Step {step} of 3</div>
             </div>
           </div>
         </div>
@@ -149,12 +179,12 @@ export default function CreateMemorialPage() {
         {/* Progress Bar */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-foreground">Creating Memorial</span>
-            <span className="text-sm text-muted-foreground">{Math.round((step / 3) * 100)}% Complete</span>
+            <span className="text-sm font-medium text-[#1B3B5F]">Creating Memorial</span>
+            <span className="text-sm text-slate-600">{Math.round((step / 3) * 100)}% Complete</span>
           </div>
-          <div className="w-full bg-border rounded-full h-2">
+          <div className="w-full bg-slate-200 rounded-full h-2">
             <div
-              className="bg-primary h-2 rounded-full transition-all duration-300"
+              className="bg-[#4A90A4] h-2 rounded-full transition-all duration-300"
               style={{ width: `${(step / 3) * 100}%` }}
             ></div>
           </div>
@@ -162,10 +192,10 @@ export default function CreateMemorialPage() {
 
         {/* Step 1: Basic Information */}
         {step === 1 && (
-          <Card className="border-0 shadow-lg bg-white">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl">Tell Us About Your Loved One</CardTitle>
-              <CardDescription className="text-lg">
+              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Tell Us About Your Loved One</CardTitle>
+              <CardDescription className="text-lg text-slate-600">
                 Let's start with the basic information to create their memorial page.
               </CardDescription>
             </CardHeader>
@@ -178,21 +208,25 @@ export default function CreateMemorialPage() {
                   onValueChange={(v) => handleInputChange("isAlive", v === "alive")}
                   className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3"
                 >
-                  <label className="flex items-center gap-3 border rounded-md p-3 cursor-pointer bg-white">
+                  <label className="flex items-center gap-3 border-2 rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[60px] touch-none transition-colors">
                     <RadioGroupItem value="in_memory" id="in_memory" />
                     <div>
-                      <div className="font-medium">In memory</div>
-                      <div className="text-xs text-muted-foreground">For someone who has passed away</div>
+                      <div className="font-medium text-base text-[#1B3B5F]">In memory</div>
+                      <div className="text-sm text-slate-600">For someone who has passed away</div>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 border rounded-md p-3 cursor-pointer bg-white">
+                  <label className="flex items-center gap-3 border-2 rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[60px] touch-none transition-colors">
                     <RadioGroupItem value="alive" id="alive" />
                     <div>
-                      <div className="font-medium">Living tribute</div>
-                      <div className="text-xs text-muted-foreground">Celebrate someone who is alive</div>
+                      <div className="font-medium text-base text-[#1B3B5F]">Living tribute</div>
+                      <div className="text-sm text-slate-600">Celebrate someone who is alive</div>
                     </div>
                   </label>
                 </RadioGroup>
+                <div className="flex items-start gap-2 mt-2 text-xs text-slate-600" aria-live="polite">
+                  <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                  <span>You can switch this later. Choose "Living tribute" for someone who is alive.</span>
+                </div>
               </div>
 
               <div className="grid md:grid-cols-2 gap-6">
@@ -205,22 +239,56 @@ export default function CreateMemorialPage() {
                     placeholder="Enter their full name"
                     value={memorialData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="border-2 focus:border-primary"
+                    className="border-2 focus:border-[#4A90A4] h-12 text-base"
                     required
                   />
+                  <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                    <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                    <span>Use their full legal name for easier searching.</span>
+                  </div>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="subtitle" className="text-sm font-medium">
                     Subtitle
                   </Label>
-                  <Input
-                    id="subtitle"
-                    placeholder="e.g., Beloved Mother, Father, Friend"
-                    value={memorialData.subtitle}
-                    onChange={(e) => handleInputChange("subtitle", e.target.value)}
-                    className="border-2 focus:border-primary"
-                  />
+                  <Select
+                    value={memorialData.subtitle || "no_subtitle"}
+                    onValueChange={(value) => handleInputChange("subtitle", value === "no_subtitle" ? "" : value)}
+                  >
+                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base">
+                    <SelectValue placeholder="Select a subtitle or leave blank" />
+                  </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no_subtitle">No subtitle</SelectItem>
+                      <SelectItem value="Beloved Mother">Beloved Mother</SelectItem>
+                      <SelectItem value="Beloved Father">Beloved Father</SelectItem>
+                      <SelectItem value="Beloved Wife">Beloved Wife</SelectItem>
+                      <SelectItem value="Beloved Husband">Beloved Husband</SelectItem>
+                      <SelectItem value="Beloved Mum">Beloved Mum</SelectItem>
+                      <SelectItem value="Beloved Dad">Beloved Dad</SelectItem>
+                      <SelectItem value="Beloved Grandmother">Beloved Grandmother</SelectItem>
+                      <SelectItem value="Beloved Grandfather">Beloved Grandfather</SelectItem>
+                      <SelectItem value="Beloved Gran">Beloved Gran</SelectItem>
+                      <SelectItem value="Beloved Grandad">Beloved Grandad</SelectItem>
+                      <SelectItem value="Beloved Sister">Beloved Sister</SelectItem>
+                      <SelectItem value="Beloved Brother">Beloved Brother</SelectItem>
+                      <SelectItem value="Beloved Friend">Beloved Friend</SelectItem>
+                      <SelectItem value="Devoted Mother & Wife">Devoted Mother & Wife</SelectItem>
+                      <SelectItem value="Devoted Father & Husband">Devoted Father & Husband</SelectItem>
+                      <SelectItem value="Cherished Mother">Cherished Mother</SelectItem>
+                      <SelectItem value="Cherished Father">Cherished Father</SelectItem>
+                      <SelectItem value="Dear Friend">Dear Friend</SelectItem>
+                      <SelectItem value="Loving Mother">Loving Mother</SelectItem>
+                      <SelectItem value="Loving Father">Loving Father</SelectItem>
+                      <SelectItem value="Wonderful Mother & Friend">Wonderful Mother & Friend</SelectItem>
+                      <SelectItem value="Wonderful Father & Friend">Wonderful Father & Friend</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                    <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                    <span>Choose a common phrase or leave blank for just the name.</span>
+                  </div>
                 </div>
               </div>
 
@@ -232,8 +300,8 @@ export default function CreateMemorialPage() {
                       <Button
                         variant="outline"
                         className={cn(
-                          "w-full justify-start text-left font-normal border-2",
-                          !memorialData.birthDate && "text-muted-foreground",
+                          "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
+                          !memorialData.birthDate && "text-slate-500",
                         )}
                       >
                         <CalendarIcon className="mr-2 h-4 w-4" />
@@ -249,6 +317,10 @@ export default function CreateMemorialPage() {
                       />
                     </PopoverContent>
                   </Popover>
+                    <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                      <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                      <span>If you're unsure, month and year are perfectly fine.</span>
+                    </div>
                 </div>
 
                 {!memorialData.isAlive && (
@@ -258,10 +330,10 @@ export default function CreateMemorialPage() {
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal border-2",
-                            !memorialData.passedDate && "text-muted-foreground",
-                          )}
+                        className={cn(
+                          "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
+                          !memorialData.passedDate && "text-slate-500",
+                        )}
                         >
                           <CalendarIcon className="mr-2 h-4 w-4" />
                           {memorialData.passedDate ? format(memorialData.passedDate, "PPP") : "Select date of passing"}
@@ -276,6 +348,10 @@ export default function CreateMemorialPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                      <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                      <span>Leave blank if you're not ready to share this yet.</span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -288,7 +364,7 @@ export default function CreateMemorialPage() {
                   value={memorialData.relationship}
                   onValueChange={(value) => handleInputChange("relationship", value)}
                 >
-                  <SelectTrigger className="border-2 focus:border-primary">
+                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base">
                     <SelectValue placeholder="Select your relationship" />
                   </SelectTrigger>
                   <SelectContent>
@@ -301,16 +377,20 @@ export default function CreateMemorialPage() {
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                  <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                  <span>Used to tailor suggestions; not shown publicly.</span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-6">
-                <div className="text-xs text-muted-foreground">
+                <div className="text-xs text-slate-600">
                   You can change anything later.
                 </div>
                 <Button
                   onClick={handleNext}
                   disabled={!memorialData.name}
-                  className="bg-primary hover:bg-primary/90 px-8"
+                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
                   size="lg"
                 >
                   Continue
@@ -322,29 +402,28 @@ export default function CreateMemorialPage() {
 
         {/* Step 2: Biography & Story */}
         {step === 2 && (
-          <Card className="border-0 shadow-lg bg-white">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
               <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl">Share Their Story</CardTitle>
-              <CardDescription className="text-lg">
+              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Share Their Story</CardTitle>
+              <CardDescription className="text-lg text-slate-600">
                 Tell us about their life, personality, and what made them special.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="biography" className="text-sm font-medium">
+              <div className="space-y-4">
+                <Label className="text-sm font-medium">
                   Life Story & Biography
                 </Label>
-                <Textarea
-                  id="biography"
-                  placeholder="Share their life story, achievements, personality, hobbies, and what made them special. This will be the heart of their memorial page."
-                  value={memorialData.biography}
-                  onChange={(e) => handleInputChange("biography", e.target.value)}
-                  className="min-h-[200px] border-2 focus:border-primary resize-none"
-                  rows={8}
-                />
-                <p className="text-sm text-muted-foreground">
-                  Take your time to capture their essence. You can always edit this later.
-                </p>
+                
+                <div className="p-6 bg-[#E8F0F5] rounded-lg border border-[#C7D6E2]">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Heart className="h-5 w-5 text-[#4A90A4]" />
+                    <h4 className="font-medium text-[#1B3B5F]">Biography will be automatically generated</h4>
+                  </div>
+                  <p className="text-slate-700 text-sm">
+                    After creating the memorial, you'll be able to personalise the biography with their unique story, memories, and achievements.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -359,7 +438,7 @@ export default function CreateMemorialPage() {
                       key={theme.id}
                       className={cn(
                         "cursor-pointer border-2 transition-none",
-                        memorialData.theme === theme.id ? "border-primary bg-primary/5" : "border-border",
+                        memorialData.theme === theme.id ? "border-[#4A90A4] bg-[#E8F0F5]" : "border-slate-200",
                       )}
                       onClick={() => handleInputChange("theme", theme.id)}
                       role="button"
@@ -370,22 +449,76 @@ export default function CreateMemorialPage() {
                       }}
                     >
                       <CardContent className="p-4 text-center">
-                        <h4 className="font-medium">{theme.name}</h4>
-                        <p className="text-sm text-muted-foreground">{theme.description}</p>
+                        <h4 className="font-medium text-[#1B3B5F]">{theme.name}</h4>
+                        <p className="text-sm text-slate-600">{theme.description}</p>
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               </div>
+              <div className="flex items-start gap-2 text-xs text-slate-600" aria-live="polite">
+                <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                <span>Pick a starting look — you can change it at any time.</span>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="burialLocation" className="text-sm font-medium">
+                  Burial or ashes location (optional)
+                </Label>
+                <Select
+                  value={memorialData.burialLocation || "not_specified"}
+                  onValueChange={(value) => {
+                    if (value === "custom") {
+                      // Keep current custom value or clear it
+                      return;
+                    }
+                    handleInputChange("burialLocation", value === "not_specified" ? null : value);
+                  }}
+                >
+                  <SelectTrigger className="border-2 focus:border-primary h-12 text-base">
+                    <SelectValue placeholder="Select location type or specify custom" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="not_specified">Not specified</SelectItem>
+                    <SelectItem value="Local cemetery">Local cemetery</SelectItem>
+                    <SelectItem value="Church graveyard">Church graveyard</SelectItem>
+                    <SelectItem value="Woodland burial site">Woodland burial site</SelectItem>
+                    <SelectItem value="Crematorium">Crematorium</SelectItem>
+                    <SelectItem value="Memorial garden">Memorial garden</SelectItem>
+                    <SelectItem value="Garden of remembrance">Garden of remembrance</SelectItem>
+                    <SelectItem value="At sea">At sea</SelectItem>
+                    <SelectItem value="Family plot">Family plot</SelectItem>
+                    <SelectItem value="Private memorial">Private memorial</SelectItem>
+                    <SelectItem value="custom">Custom location...</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                {/* Show custom input if custom is selected or if there's a custom value that doesn't match presets */}
+                {(memorialData.burialLocation && 
+                  !["Local cemetery", "Church graveyard", "Woodland burial site", "Crematorium", 
+                    "Memorial garden", "Garden of remembrance", "At sea", "Family plot", "Private memorial"].includes(memorialData.burialLocation)) && (
+                  <div className="mt-2">
+                    <Input
+                      id="burialLocationCustom"
+                      placeholder="e.g., Highgate Cemetery, London — Plot 24B"
+                      value={memorialData.burialLocation || ""}
+                      onChange={(e) => handleInputChange("burialLocation", e.target.value)}
+                      className="border-2 focus:border-[#4A90A4] h-12 text-base"
+                    />
+                  </div>
+                )}
+                
+                <p className="text-xs text-slate-600">Choose a general type or add specific details. Only share what the family is comfortable making public.</p>
+              </div>
 
               <div className="flex justify-between pt-6">
-                <Button onClick={handlePrevious} variant="outline" size="lg">
+                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full">
                   Previous
                 </Button>
                 <Button
                   onClick={handleNext}
-                  disabled={!memorialData.biography.trim()}
-                  className="bg-primary hover:bg-primary/90 px-8"
+                  disabled={false}
+                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
                   size="lg"
                 >
                   Continue
@@ -397,10 +530,10 @@ export default function CreateMemorialPage() {
 
         {/* Step 3: Images & Final Review */}
         {step === 3 && (
-          <Card className="border-0 shadow-lg bg-white">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
             <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl">Add Photos & Review</CardTitle>
-              <CardDescription className="text-lg">
+              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Add Photos & Review</CardTitle>
+              <CardDescription className="text-lg text-slate-600">
                 Upload photos and review your memorial page before publishing.
               </CardDescription>
             </CardHeader>
@@ -408,8 +541,12 @@ export default function CreateMemorialPage() {
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Profile Photo</Label>
+                  <div className="flex items-start gap-2 -mt-1 mb-1 text-xs text-slate-600" aria-live="polite">
+                    <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                    <span>Square works best; choose a clear, well‑lit photo.</span>
+                  </div>
                 <div
-                  className="relative border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer overflow-hidden"
+                  className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#4A90A4] transition-colors cursor-pointer overflow-hidden"
                   onClick={() => profileInputRef.current?.click()}
                 >
                   {memorialData.profileImage ? (
@@ -420,8 +557,8 @@ export default function CreateMemorialPage() {
                     />
                   ) : (
                     <>
-                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Click to upload profile photo</p>
+                      <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm text-slate-600">Click to upload profile photo</p>
                     </>
                   )}
                   <input
@@ -453,8 +590,12 @@ export default function CreateMemorialPage() {
 
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Cover Photo</Label>
+                  <div className="flex items-start gap-2 -mt-1 mb-1 text-xs text-slate-600" aria-live="polite">
+                    <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
+                    <span>Landscape image recommended; around 1600×600 looks great.</span>
+                  </div>
                 <div
-                  className="relative border-2 border-dashed border-border rounded-lg p-4 text-center hover:border-primary transition-colors cursor-pointer overflow-hidden"
+                  className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#4A90A4] transition-colors cursor-pointer overflow-hidden"
                   onClick={() => coverInputRef.current?.click()}
                 >
                   {memorialData.coverImage ? (
@@ -465,8 +606,8 @@ export default function CreateMemorialPage() {
                     />
                   ) : (
                     <>
-                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                      <p className="text-sm text-muted-foreground">Click to upload cover photo</p>
+                      <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
+                      <p className="text-sm text-slate-600">Click to upload cover photo</p>
                     </>
                   )}
                   <input
@@ -498,8 +639,8 @@ export default function CreateMemorialPage() {
               </div>
 
               {/* Preview Summary */}
-              <div className="bg-memorial-bg rounded-lg p-6 space-y-4">
-                <h3 className="font-serif text-xl font-semibold">Memorial Preview</h3>
+              <div className="bg-[#E8F0F5] rounded-lg p-6 space-y-4">
+                <h3 className="font-serif text-xl font-semibold text-[#1B3B5F]">Memorial Preview</h3>
                 <div className="space-y-2">
                   <p>
                     <strong>Name:</strong> {memorialData.name || "Not specified"}
@@ -514,28 +655,30 @@ export default function CreateMemorialPage() {
                       : "Not specified"}
                   </p>
                   <p>
+                    <strong>Burial/Ashes:</strong> {memorialData.burialLocation?.trim() || "Not specified"}
+                  </p>
+                  <p>
                     <strong>Theme:</strong> {memorialData.theme}
                   </p>
                   <p>
-                    <strong>Biography:</strong> {memorialData.biography.substring(0, 150)}
-                    {memorialData.biography.length > 150 ? "..." : ""}
+                    <strong>Biography:</strong> Will be automatically generated with a lovely template
                   </p>
                 </div>
               </div>
 
               <div className="flex justify-between pt-6">
-                <Button onClick={handlePrevious} variant="outline" size="lg">
+                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full">
                   Previous
                 </Button>
                 <div className="flex space-x-4">
-                  <Button variant="outline" size="lg" className="flex items-center space-x-2 bg-transparent" disabled>
+                  <Button variant="outline" size="lg" className="flex items-center space-x-2 bg-transparent border-2 border-slate-300 !text-slate-600 rounded-full" disabled>
                     <Eye className="h-4 w-4" />
                     <span>Preview</span>
                   </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="bg-primary hover:bg-primary/90 px-8"
+                    className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
                     size="lg"
                   >
                     {loading ? "Creating..." : memorialData.isAlive ? "Create Tribute Page" : "Create Memorial"}

@@ -47,7 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     ;(async () => {
       try {
-        const res = await fetch("/api/auth/me")
+        const res = await fetch("/api/auth/me", {
+          credentials: 'include'
+        })
         const data = await res.json()
         if (data?.user) {
           const nextUser: User = {
@@ -58,8 +60,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
           setUser(nextUser)
           localStorage.setItem("memorial-user", JSON.stringify(nextUser))
+        } else {
+          // Server says no user, clear local storage
+          setUser(null)
+          localStorage.removeItem("memorial-user")
         }
-      } catch {}
+      } catch {
+        // Network error - keep local user if exists but mark as potentially invalid
+        console.warn("Failed to verify session with server")
+      }
       setIsLoading(false)
     })()
   }, [])
@@ -72,6 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: 'include',
         body: JSON.stringify(name ? { email, password, name } : { email, password }),
       })
       const data = await res.json()

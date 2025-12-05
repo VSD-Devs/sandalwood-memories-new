@@ -177,7 +177,7 @@ export default async function MemorialsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem asChild>
-                          <Link href={`/memorial/${memorial.id}`} className="flex items-center">
+                          <Link href={`/memorial/${memorial.slug || memorial.id}`} className="flex items-center">
                             <Eye className="mr-2 h-4 w-4 text-blue-600" />
                             View Memorial
                           </Link>

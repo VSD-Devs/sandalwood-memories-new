@@ -65,14 +65,14 @@ async function main() {
       console.log('table:users:' + (r?.[0]?.t ? 'present' : 'missing'))
     } catch { console.log('table:users:err') }
     try {
-      const r = await sql`select to_regclass('neon_auth.users_sync') as t`
-      console.log('table:neon_auth.users_sync:' + (r?.[0]?.t ? 'present' : 'missing'))
-    } catch { console.log('table:neon_auth.users_sync:err') }
+      const r = await sql`select to_regclass('users') as t`
+      console.log('table:users:' + (r?.[0]?.t ? 'present' : 'missing'))
+    } catch { console.log('table:users:err') }
     try {
-      const r = await sql`select 1 from neon_auth.users_sync limit 1`
-      console.log('select:neon_auth.users_sync:ok')
+      const r = await sql`select 1 from users limit 1`
+      console.log('select:users:ok')
     } catch {
-      console.log('select:neon_auth.users_sync:err')
+      console.log('select:users:err')
     }
   } catch (e) {
     const code = e && (e.code || e.name || e.message || 'unknown')

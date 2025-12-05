@@ -128,7 +128,7 @@ export class MediaProcessor {
   }
 
   static validateFile(file: File): { valid: boolean; error?: string } {
-    const maxSize = 100 * 1024 * 1024 // 100MB
+    const maxSize = 500 * 1024 * 1024 // 500MB
     const allowedTypes = [
       "image/jpeg",
       "image/jpg",
@@ -140,7 +140,7 @@ export class MediaProcessor {
     ]
 
     if (file.size > maxSize) {
-      return { valid: false, error: "File size must be less than 100MB" }
+      return { valid: false, error: "File size must be less than 500MB" }
     }
 
     if (!allowedTypes.includes(file.type)) {

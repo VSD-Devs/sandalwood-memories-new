@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTrigger, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Heart, Mail, Lock, User, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 
@@ -49,8 +50,8 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
 
       if (success) {
         setIsOpen(false)
-        // Redirect to create memorial page after successful login
-        router.push("/create")
+        // Redirect: sign in → My memorials, sign up → Create memorial
+        router.push(currentMode === "signin" ? "/memorial" : "/create")
       }
     } catch (err) {
       setError("Authentication failed. Please try again.")
@@ -73,7 +74,7 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
   }
 
   const triggerButton = children || (
-    <Button variant={variant} className={variant === "outline" ? "border-2 hover:bg-memorial-card" : ""}>
+    <Button variant={variant} className={variant === "outline" ? "border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full" : ""}>
       {mode === "signin" ? "Sign In" : "Get Started"}
     </Button>
   )
@@ -81,16 +82,21 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent className="sm:max-w-md bg-white border-0 shadow-2xl">
-        <Card className="border-0 shadow-none">
+      <DialogContent className="sm:max-w-md bg-white border-0 shadow-2xl rounded-3xl">
+        <VisuallyHidden>
+          <DialogTitle>
+            {currentMode === "signin" ? "Sign In" : "Create Your Account"}
+          </DialogTitle>
+        </VisuallyHidden>
+        <Card className="border-0 shadow-none bg-transparent">
           <CardHeader className="text-center pb-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Heart className="h-8 w-8 text-primary" />
+            <div className="w-16 h-16 bg-[#E8F0F5] rounded-full flex items-center justify-center mx-auto mb-4">
+              <Heart className="h-8 w-8 text-[#4A90A4]" />
             </div>
-            <CardTitle className="font-serif text-2xl">
+            <CardTitle className="font-serif text-2xl text-[#1B3B5F]">
               {currentMode === "signin" ? "Welcome Back" : "Create Your Account"}
             </CardTitle>
-            <CardDescription className="text-muted-foreground">
+            <CardDescription className="text-slate-600">
               {currentMode === "signin"
                 ? "Sign in to manage your memorial pages"
                 : "Start creating beautiful memorial pages for your loved ones"}
@@ -101,28 +107,28 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
               <Button
                 onClick={handleQuickLogin}
                 variant="outline"
-                className="w-full border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 bg-transparent"
+                className="w-full border-2 border-dashed border-[#4A90A4]/30 text-[#4A90A4] hover:bg-[#E8F0F5] bg-transparent rounded-full"
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Quick Test Login (No credentials needed)
               </Button>
-              <p className="text-xs text-muted-foreground text-center mt-1">
+              <p className="text-xs text-slate-600 text-center mt-1">
                 For testing - creates account as "Test User"
               </p>
             </div>
 
             <div className="relative mb-4">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <span className="w-full border-t border-slate-200" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-muted-foreground">Or continue with form</span>
+                <span className="bg-white px-2 text-slate-600">Or continue with form</span>
               </div>
             </div>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
@@ -134,14 +140,14 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                     Full Name
                   </Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <Input
                       id="name"
                       type="text"
                       placeholder="Enter your full name (optional for testing)"
                       value={formData.name}
                       onChange={(e) => handleInputChange("name", e.target.value)}
-                      className="pl-10 border-2 focus:border-primary"
+                      className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
                     />
                   </div>
                 </div>
@@ -152,15 +158,15 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                   Email
                 </Label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="Enter email (optional for testing)"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className="pl-10 border-2 focus:border-primary"
-                  />
+                  <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter email (optional for testing)"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange("email", e.target.value)}
+                      className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
+                    />
                 </div>
               </div>
 
@@ -169,15 +175,15 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                   Password
                 </Label>
                 <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter password (optional for testing)"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    className="pl-10 border-2 focus:border-primary"
-                  />
+                  <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter password (optional for testing)"
+                      value={formData.password}
+                      onChange={(e) => handleInputChange("password", e.target.value)}
+                      className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
+                    />
                 </div>
               </div>
 
@@ -187,14 +193,14 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                     Confirm Password
                   </Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
                     <Input
                       id="confirmPassword"
                       type="password"
                       placeholder="Confirm your password"
                       value={formData.confirmPassword}
                       onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                      className="pl-10 border-2 focus:border-primary"
+                      className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
                     />
                   </div>
                 </div>
@@ -202,7 +208,7 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
 
               <Button
                 type="submit"
-                className="w-full bg-primary hover:bg-primary/90 transition-all duration-300 transform hover:scale-105"
+                className="w-full !bg-[#1B3B5F] hover:!bg-[#16304d] !text-white transition-all duration-300 rounded-full"
                 size="lg"
                 disabled={isLoading}
               >
@@ -215,7 +221,7 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
               <button
                 type="button"
                 onClick={() => setCurrentMode(currentMode === "signin" ? "signup" : "signin")}
-                className="text-sm text-primary hover:text-primary/80 transition-colors"
+                className="text-sm text-[#4A90A4] hover:text-[#3a7a8a] transition-colors"
               >
                 {currentMode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
               </button>

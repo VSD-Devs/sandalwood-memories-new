@@ -17,6 +17,7 @@ export interface Memorial {
   id: string
   title: string
   full_name: string
+  slug: string
   birth_date: string | null
   death_date: string | null
   biography: string | null
@@ -27,6 +28,8 @@ export interface Memorial {
   updated_at: string
   is_public: boolean
   status: "active" | "pending" | "archived"
+  is_alive?: boolean
+  burial_location?: string | null
 }
 
 export interface User {
@@ -43,15 +46,16 @@ export interface Tribute {
   author_name: string
   author_email: string | null
   message: string
-  is_approved: boolean
+  status: 'pending' | 'approved' | 'rejected'
   created_at: string
+  updated_at: string
 }
 
 export interface Media {
   id: string
   memorial_id: string
   file_url: string
-  file_type: "image" | "video"
+  file_type: "image" | "video" | "document"
   title: string | null
   description: string | null
   uploaded_by: string
@@ -63,7 +67,7 @@ export async function getMemorials(limit = 50, offset = 0) {
   const result = await getSql()`
     SELECT m.*, u.name as creator_name, u.email as creator_email
     FROM memorials m
-    LEFT JOIN neon_auth.users_sync u ON m.created_by = u.id
+    LEFT JOIN users u ON m.created_by = u.id
     ORDER BY m.created_at DESC
     LIMIT ${limit} OFFSET ${offset}
   `
@@ -74,10 +78,45 @@ export async function getMemorialById(id: string) {
   const result = await getSql()`
     SELECT m.*, u.name as creator_name, u.email as creator_email
     FROM memorials m
-    LEFT JOIN neon_auth.users_sync u ON m.created_by = u.id
+    LEFT JOIN users u ON m.created_by = u.id
     WHERE m.id = ${id}
   `
   return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+}
+
+export async function getMemorialBySlug(slug: string) {
+  try {
+    const result = await getSql()`
+      SELECT m.*, u.name as creator_name, u.email as creator_email
+      FROM memorials m
+      LEFT JOIN users u ON m.created_by = u.id
+      WHERE m.slug = ${slug}
+    `
+    return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+  } catch (error) {
+    // If slug column doesn't exist yet, return undefined
+    console.error('Error in getMemorialBySlug:', error)
+    return undefined
+  }
+}
+
+export async function checkSlugExists(slug: string, excludeId?: string) {
+  const sql = getSql()
+  let result
+  
+  if (excludeId) {
+    result = await sql`
+      SELECT COUNT(*) as count FROM memorials 
+      WHERE slug = ${slug} AND id != ${excludeId}
+    `
+  } else {
+    result = await sql`
+      SELECT COUNT(*) as count FROM memorials 
+      WHERE slug = ${slug}
+    `
+  }
+  
+  return parseInt(result[0]?.count || '0') > 0
 }
 
 export async function updateMemorialStatus(id: string, status: "active" | "pending" | "archived") {
@@ -117,7 +156,15 @@ export async function getTributes(limit = 50, offset = 0) {
 export async function approveTribute(id: string) {
   await getSql()`
     UPDATE tributes 
-    SET is_approved = true
+    SET status = 'approved', updated_at = NOW()
+    WHERE id = ${id}
+  `
+}
+
+export async function rejectTribute(id: string) {
+  await getSql()`
+    UPDATE tributes 
+    SET status = 'rejected', updated_at = NOW()
     WHERE id = ${id}
   `
 }
@@ -132,7 +179,7 @@ export async function getDashboardStats() {
   const [memorialStats, userStats, tributeStats] = await Promise.all([
     sql`SELECT COUNT(*) as total, status FROM memorials GROUP BY status`,
     sql`SELECT COUNT(*) as total FROM neon_auth.users_sync`,
-    sql`SELECT COUNT(*) as total, is_approved FROM tributes GROUP BY is_approved`,
+    sql`SELECT COUNT(*) as total, status FROM tributes GROUP BY status`,
   ])
 
   return {
@@ -146,10 +193,10 @@ export async function getDashboardStats() {
     users: Number.parseInt(userStats[0]?.total || "0"),
     tributes: tributeStats.reduce(
       (acc: any, row: any) => {
-        acc[row.is_approved ? "approved" : "pending"] = Number.parseInt(row.total)
+        acc[row.status] = Number.parseInt(row.total)
         return acc
       },
-      { approved: 0, pending: 0 },
+      { approved: 0, pending: 0, rejected: 0 },
     ),
   }
 }

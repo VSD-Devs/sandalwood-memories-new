@@ -25,9 +25,35 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       return NextResponse.json({ error: "Database not configured" }, { status: 503 })
     }
     const body = await request.json()
-    const { title, description = null, event_date = null, category = null, image_url = null } = body || {}
-    const normalizedDate = event_date && String(event_date).trim() !== "" ? event_date : null
-    const normalizedImage = image_url && String(image_url).trim() !== "" ? image_url : null
+    const { title, description = null, event_date = null, category = null, media_id = null } = body || {}
+    
+    // Validate required fields for update
+    if (event_date !== null && !event_date) {
+      return NextResponse.json({ error: "event_date is required" }, { status: 400 })
+    }
+    
+    // Handle different date formats
+    let normalizedDate = null
+    if (event_date && String(event_date).trim() !== "") {
+      const dateStr = String(event_date).trim()
+      
+      // Handle YYYY-MM format (month input) - convert to first day of month
+      if (dateStr.match(/^\d{4}-\d{2}$/)) {
+        normalizedDate = `${dateStr}-01`
+      } 
+      // Handle full date format
+      else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        normalizedDate = dateStr
+      }
+      // Try to parse other formats
+      else {
+        const parsedDate = new Date(dateStr)
+        if (!isNaN(parsedDate.getTime())) {
+          normalizedDate = parsedDate.toISOString().split('T')[0]
+        }
+      }
+    }
+    const normalizedMediaId = media_id && String(media_id).trim() !== "" ? media_id : null
 
     await sql`
       UPDATE timeline_events
@@ -36,7 +62,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
         description = ${description},
         event_date = ${normalizedDate},
         category = COALESCE(${category}, category),
-        image_url = ${normalizedImage}
+        media_id = ${normalizedMediaId}
       WHERE id = ${eventId} AND memorial_id = ${id}
     `
 

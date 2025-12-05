@@ -1,4 +1,4 @@
-import { getDashboardStats, getMemorials, getTributes } from "@/lib/database"
+import { getDashboardStats, getMemorials } from "@/lib/database"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -22,16 +22,14 @@ import Link from "next/link"
 export const dynamic = "force-dynamic"
 
 export default async function AdminDashboard() {
-  const [stats, recentMemorials, recentTributes] = await Promise.all([
+  const [stats, recentMemorials] = await Promise.all([
     getDashboardStats(),
     getMemorials(5),
-    getTributes(5),
   ])
 
   const totalMemorials = stats.memorials.active + stats.memorials.pending + stats.memorials.archived
-  const totalTributes = stats.tributes.approved + stats.tributes.pending
-  const approvalRate = totalTributes > 0 ? Math.round((stats.tributes.approved / totalTributes) * 100) : 0
-  const pendingActions = stats.memorials.pending + stats.tributes.pending
+  const totalTributes = (stats.tributes.approved || 0) + (stats.tributes.pending || 0) + (stats.tributes.rejected || 0)
+  const pendingActions = stats.memorials.pending
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50">
@@ -104,16 +102,7 @@ export default async function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold mb-2">{totalTributes}</div>
-              <div className="flex gap-2">
-                <Badge variant="secondary" className="bg-white/20 text-white border-0">
-                  {approvalRate}% approved
-                </Badge>
-                {stats.tributes.pending > 0 && (
-                  <Badge variant="secondary" className="bg-red-500 text-white border-0">
-                    {stats.tributes.pending} pending
-                  </Badge>
-                )}
-              </div>
+              <p className="text-amber-100 text-sm">Messages of remembrance</p>
             </CardContent>
           </Card>
 
@@ -156,21 +145,6 @@ export default async function AdminDashboard() {
                   )}
                 </Button>
               </Link>
-              <Link href="/admin/tributes" className="block">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start bg-amber-50 border-amber-200 hover:bg-amber-100"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2 text-amber-600" />
-                  Review Tributes
-                  {stats.tributes.pending > 0 && (
-                    <Badge variant="destructive" className="ml-auto">
-                      {stats.tributes.pending}
-                    </Badge>
-                  )}
-                </Button>
-              </Link>
               <Button
                 variant="outline"
                 size="sm"
@@ -206,13 +180,6 @@ export default async function AdminDashboard() {
                     <span className="text-sm font-medium">New memorial created</span>
                   </div>
                   <span className="text-xs text-gray-500">2 hours ago</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 bg-amber-500 rounded-full"></div>
-                    <span className="text-sm font-medium">Tribute awaiting approval</span>
-                  </div>
-                  <span className="text-xs text-gray-500">4 hours ago</span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -294,48 +261,6 @@ export default async function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Recent Tributes */}
-          <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-            <CardHeader className="bg-gradient-to-r from-amber-500 to-amber-600 text-white rounded-t-lg">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Recent Tributes
-              </CardTitle>
-              <CardDescription className="text-amber-100">Latest tribute messages</CardDescription>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {recentTributes.map((tribute) => (
-                  <div
-                    key={tribute.id}
-                    className="flex items-start justify-between p-4 border border-amber-100 rounded-lg hover:bg-amber-50 transition-colors"
-                  >
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-gray-900">{tribute.author_name}</h4>
-                      <p className="text-sm text-gray-600 line-clamp-2 mt-1">{tribute.message}</p>
-                      <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        For {tribute.full_name} • {new Date(tribute.created_at).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="ml-3">
-                      <Badge
-                        variant={tribute.is_approved ? "default" : "destructive"}
-                        className={tribute.is_approved ? "bg-emerald-500" : "bg-red-500 animate-pulse"}
-                      >
-                        {tribute.is_approved ? "Approved" : "Pending"}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6">
-                <Link href="/admin/tributes">
-                  <Button className="w-full bg-amber-600 hover:bg-amber-700">Review All Tributes</Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {pendingActions > 0 && (
@@ -348,7 +273,6 @@ export default async function AdminDashboard() {
                   <p className="text-sm text-amber-700">
                     You have {pendingActions} items that need your attention.
                     {stats.memorials.pending > 0 && ` ${stats.memorials.pending} memorials awaiting approval.`}
-                    {stats.tributes.pending > 0 && ` ${stats.tributes.pending} tributes need review.`}
                   </p>
                 </div>
               </div>
