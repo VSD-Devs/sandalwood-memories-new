@@ -2,13 +2,5 @@
   "version": 2,
   "framework": "nextjs",
   "installCommand": "pnpm install --no-frozen-lockfile",
-  "buildCommand": "pnpm run build",
-  "functions": {
-    "api/**/*.{js,ts}": {
-      "runtime": "@vercel/node@2"
-    },
-    "app/api/**/*.{js,ts}": {
-      "runtime": "@vercel/node@2"
-    }
-  }
+  "buildCommand": "pnpm run build"
 }
