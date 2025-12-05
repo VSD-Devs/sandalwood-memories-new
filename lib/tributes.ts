@@ -1,18 +1,5 @@
-import { neon } from "@neondatabase/serverless"
+import { supabase } from "./database"
 import { getSessionCookieName, getUserBySessionToken } from "./auth"
-
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
-  }
-  return null
-}
 
 export interface Tribute {
   id: string
@@ -20,11 +7,9 @@ export interface Tribute {
   author_name: string
   author_email?: string
   message: string
-  status: 'pending' | 'approved' | 'rejected'
+  is_approved: boolean
   created_at: string
-  updated_at: string
-  moderated_by?: string
-  moderated_at?: string
+  updated_at?: string
   ip_address?: string
   user_agent?: string
 }
@@ -42,51 +27,56 @@ export interface TributeCreateData {
  * Create a new tribute
  */
 export async function createTribute(data: TributeCreateData): Promise<Tribute> {
-  const sql = getSql()
-  if (!sql) throw new Error("Database not available")
+  const { data: tribute, error } = await supabase
+    .from('tributes')
+    .insert({
+      memorial_id: data.memorial_id,
+      author_name: data.author_name,
+      author_email: data.author_email || null,
+      message: data.message,
+      ip_address: data.ip_address || null,
+      user_agent: data.user_agent || null,
+      is_approved: true // Auto-approve all tributes
+    })
+    .select()
+    .single()
 
-  const tribute = await sql`
-    INSERT INTO tributes (
-      memorial_id, author_name, author_email, message, 
-      ip_address, user_agent, status
-    )
-    VALUES (
-      ${data.memorial_id}, ${data.author_name}, ${data.author_email || null}, ${data.message},
-      ${data.ip_address || null}, ${data.user_agent || null}, 'approved'
-    )
-    RETURNING *
-  `
+  if (error) {
+    throw new Error(`Failed to create tribute: ${error.message}`)
+  }
 
-  return tribute[0] as Tribute
+  return tribute as Tribute
 }
 
 /**
  * Get tributes for a memorial
  */
 export async function getTributes(
-  memorial_id: string, 
-  options: { 
+  memorial_id: string,
+  options: {
     include_pending?: boolean
     limit?: number
     offset?: number
   } = {}
 ): Promise<Tribute[]> {
-  const sql = getSql()
-  if (!sql) throw new Error("Database not available")
-
   const { include_pending = false, limit = 50, offset = 0 } = options
 
-  let statusCondition = sql`WHERE memorial_id = ${memorial_id} AND status = 'approved'`
-  if (include_pending) {
-    statusCondition = sql`WHERE memorial_id = ${memorial_id} AND status IN ('approved', 'pending')`
+  let query = supabase
+    .from('tributes')
+    .select('*')
+    .eq('memorial_id', memorial_id)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (!include_pending) {
+    query = query.eq('is_approved', true)
   }
 
-  const tributes = await sql`
-    SELECT * FROM tributes 
-    ${statusCondition}
-    ORDER BY created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `
+  const { data: tributes, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch tributes: ${error.message}`)
+  }
 
   return tributes as Tribute[]
 }
@@ -102,31 +92,41 @@ export async function getTributesForOwner(
     offset?: number
   } = {}
 ): Promise<Array<Tribute & { memorial_title?: string; memorial_full_name?: string }>> {
-  const sql = getSql()
-  if (!sql) throw new Error("Database not available")
-
   const { status = 'pending', limit = 100, offset = 0 } = options
 
-  let statusCondition = sql``
-  if (status === 'pending') statusCondition = sql`AND t.status = 'pending'`
-  else if (status === 'approved') statusCondition = sql`AND t.status = 'approved'`  
-  else if (status === 'rejected') statusCondition = sql`AND t.status = 'rejected'`
-  // 'all' means no status filter
+  let query = supabase
+    .from('tributes')
+    .select(`
+      *,
+      memorials (
+        title,
+        full_name
+      )
+    `)
+    .or(`created_by.eq.${user_id}`)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
 
-  const tributes = await sql`
-    SELECT 
-      t.*,
-      m.title as memorial_title,
-      m.full_name as memorial_full_name
-    FROM tributes t
-    JOIN memorials m ON m.id = t.memorial_id
-    WHERE (m.created_by = ${user_id} OR m.owner_user_id = ${user_id})
-      ${statusCondition}
-    ORDER BY t.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `
+  // Apply status filter
+  if (status === 'approved') {
+    query = query.eq('is_approved', true)
+  } else if (status === 'pending') {
+    query = query.eq('is_approved', false)
+  }
+  // 'all' or 'rejected' means no additional filter needed for now
 
-  return tributes as Array<Tribute & { memorial_title?: string; memorial_full_name?: string }>
+  const { data: tributes, error } = await query
+
+  if (error) {
+    throw new Error(`Failed to fetch tributes for owner: ${error.message}`)
+  }
+
+  return tributes?.map(tribute => ({
+    ...tribute,
+    memorial_title: tribute.memorials?.title || '',
+    memorial_full_name: tribute.memorials?.full_name || '',
+    memorials: undefined // Remove the nested memorials object
+  })) as Array<Tribute & { memorial_title?: string; memorial_full_name?: string }>
 }
 
 /**
@@ -138,50 +138,49 @@ export async function moderateTribute(
   moderator_user_id: string,
   action: 'approve' | 'reject'
 ): Promise<void> {
-  const sql = getSql()
-  if (!sql) throw new Error("Database not available")
+  const is_approved = action === 'approve'
 
-  const status = action === 'approve' ? 'approved' : 'rejected'
+  const { error } = await supabase
+    .from('tributes')
+    .update({
+      is_approved,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', tribute_id)
+    .eq('memorial_id', memorial_id)
 
-  await sql`
-    UPDATE tributes 
-    SET 
-      status = ${status},
-      moderated_by = ${moderator_user_id},
-      moderated_at = NOW(),
-      updated_at = NOW()
-    WHERE id = ${tribute_id} AND memorial_id = ${memorial_id}
-  `
+  if (error) {
+    throw new Error(`Failed to moderate tribute: ${error.message}`)
+  }
 }
 
 /**
  * Delete a tribute
  */
 export async function deleteTribute(tribute_id: string, memorial_id: string): Promise<void> {
-  const sql = getSql()
-  if (!sql) throw new Error("Database not available")
+  const { error } = await supabase
+    .from('tributes')
+    .delete()
+    .eq('id', tribute_id)
+    .eq('memorial_id', memorial_id)
 
-  await sql`
-    DELETE FROM tributes 
-    WHERE id = ${tribute_id} AND memorial_id = ${memorial_id}
-  `
+  if (error) {
+    throw new Error(`Failed to delete tribute: ${error.message}`)
+  }
 }
 
 /**
  * Check if user owns a memorial
  */
 export async function checkMemorialOwnership(memorial_id: string, user_id: string): Promise<boolean> {
-  const sql = getSql()
-  if (!sql) return false
+  const { data, error } = await supabase
+    .from('memorials')
+    .select('id')
+    .eq('id', memorial_id)
+    .or(`created_by.eq.${user_id}`)
+    .single()
 
-  const result = await sql`
-    SELECT 1 FROM memorials 
-    WHERE id = ${memorial_id} 
-      AND (created_by = ${user_id} OR owner_user_id = ${user_id})
-    LIMIT 1
-  `
-
-  return result.length > 0
+  return !error && !!data
 }
 
 /**

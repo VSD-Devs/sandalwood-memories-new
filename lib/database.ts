@@ -1,16 +1,22 @@
-import { neon } from "@neondatabase/serverless"
+import { createClient } from '@supabase/supabase-js'
 
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  throw new Error('Missing Supabase environment variables')
+}
+
+export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false
   }
-  throw new Error("DATABASE_URL is not set")
+})
+
+// For backwards compatibility with existing queries
+function getSql() {
+  return supabase
 }
 
 export interface Memorial {
@@ -46,9 +52,9 @@ export interface Tribute {
   author_name: string
   author_email: string | null
   message: string
-  status: 'pending' | 'approved' | 'rejected'
+  is_approved: boolean
   created_at: string
-  updated_at: string
+  updated_at?: string
 }
 
 export interface Media {
@@ -65,14 +71,29 @@ export interface Media {
 // Memorial operations
 export async function getMemorials(limit = 50, offset = 0) {
   try {
-    const result = await getSql()`
-      SELECT m.*, u.name as creator_name, u.email as creator_email
-      FROM memorials m
-      LEFT JOIN users u ON m.created_by = u.id
-      ORDER BY m.created_at DESC
-      LIMIT ${limit} OFFSET ${offset}
-    `
-    return result as (Memorial & { creator_name: string; creator_email: string })[]
+    const { data, error } = await supabase
+      .from('memorials')
+      .select(`
+        *,
+        users (
+          name,
+          email
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.warn('Database error:', error)
+      return []
+    }
+
+    return data?.map(memorial => ({
+      ...memorial,
+      creator_name: memorial.users?.name || '',
+      creator_email: memorial.users?.email || '',
+      users: undefined // Remove the nested users object
+    })) as (Memorial & { creator_name: string; creator_email: string })[]
   } catch (error) {
     console.warn('Database not available, returning empty array:', error)
     return []
@@ -81,13 +102,29 @@ export async function getMemorials(limit = 50, offset = 0) {
 
 export async function getMemorialById(id: string) {
   try {
-    const result = await getSql()`
-      SELECT m.*, u.name as creator_name, u.email as creator_email
-      FROM memorials m
-      LEFT JOIN users u ON m.created_by = u.id
-      WHERE m.id = ${id}
-    `
-    return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+    const { data, error } = await supabase
+      .from('memorials')
+      .select(`
+        *,
+        users (
+          name,
+          email
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      console.warn('Database error:', error)
+      return undefined
+    }
+
+    return {
+      ...data,
+      creator_name: data.users?.name || '',
+      creator_email: data.users?.email || '',
+      users: undefined // Remove the nested users object
+    } as (Memorial & { creator_name: string; creator_email: string })
   } catch (error) {
     console.warn('Database not available:', error)
     return undefined
@@ -143,70 +180,115 @@ export async function deleteMemorial(id: string) {
 
 // User operations
 export async function getUsers(limit = 50, offset = 0) {
-  const result = await getSql()`
-    SELECT * FROM neon_auth.users_sync
-    ORDER BY created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `
-  return result as User[]
+  const { data, error } = await supabase
+    .from('users')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) {
+    console.warn('Database error:', error)
+    return []
+  }
+
+  return data as User[]
 }
 
 // Tribute operations
 export async function getTributes(limit = 50, offset = 0) {
-  const result = await getSql()`
-    SELECT t.*, m.title as memorial_title, m.full_name
-    FROM tributes t
-    LEFT JOIN memorials m ON t.memorial_id = m.id
-    ORDER BY t.created_at DESC
-    LIMIT ${limit} OFFSET ${offset}
-  `
-  return result as (Tribute & { memorial_title: string; full_name: string })[]
+  const { data, error } = await supabase
+    .from('tributes')
+    .select(`
+      *,
+      memorials (
+        title,
+        full_name
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) {
+    console.warn('Database error:', error)
+    return []
+  }
+
+  return data?.map(tribute => ({
+    ...tribute,
+    memorial_title: tribute.memorials?.title || '',
+    full_name: tribute.memorials?.full_name || '',
+    memorials: undefined // Remove the nested memorials object
+  })) as (Tribute & { memorial_title: string; full_name: string })[]
 }
 
 export async function approveTribute(id: string) {
-  await getSql()`
-    UPDATE tributes 
-    SET status = 'approved', updated_at = NOW()
-    WHERE id = ${id}
-  `
+  const { error } = await supabase
+    .from('tributes')
+    .update({ is_approved: true, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) {
+    throw new Error(`Failed to approve tribute: ${error.message}`)
+  }
 }
 
 export async function rejectTribute(id: string) {
-  await getSql()`
-    UPDATE tributes 
-    SET status = 'rejected', updated_at = NOW()
-    WHERE id = ${id}
-  `
+  const { error } = await supabase
+    .from('tributes')
+    .update({ is_approved: false, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) {
+    throw new Error(`Failed to reject tribute: ${error.message}`)
+  }
 }
 
 export async function deleteTribute(id: string) {
-  await getSql()`DELETE FROM tributes WHERE id = ${id}`
+  const { error } = await supabase
+    .from('tributes')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    throw new Error(`Failed to delete tribute: ${error.message}`)
+  }
 }
 
 // Statistics
 export async function getDashboardStats() {
-  const sql = getSql()
   const [memorialStats, userStats, tributeStats] = await Promise.all([
-    sql`SELECT COUNT(*) as total, status FROM memorials GROUP BY status`,
-    sql`SELECT COUNT(*) as total FROM neon_auth.users_sync`,
-    sql`SELECT COUNT(*) as total, status FROM tributes GROUP BY status`,
+    supabase.from('memorials').select('status'),
+    supabase.from('users').select('id', { count: 'exact', head: true }),
+    supabase.from('tributes').select('is_approved'),
   ])
 
+  // Process memorial stats
+  const memorialCounts = { active: 0, pending: 0, archived: 0 }
+  if (memorialStats.data) {
+    memorialStats.data.forEach((row: any) => {
+      if (row.status in memorialCounts) {
+        memorialCounts[row.status as keyof typeof memorialCounts]++
+      }
+    })
+  }
+
+  // Process tribute stats
+  const tributeCounts = { approved: 0, pending: 0, rejected: 0 }
+  if (tributeStats.data) {
+    tributeStats.data.forEach((row: any) => {
+      if (row.is_approved === true) {
+        tributeCounts.approved++
+      } else if (row.is_approved === false) {
+        tributeCounts.rejected++ // Assuming false means rejected, but this might need adjustment
+      } else {
+        tributeCounts.pending++
+      }
+    })
+  }
+
   return {
-    memorials: memorialStats.reduce(
-      (acc: any, row: any) => {
-        acc[row.status] = Number.parseInt(row.total)
-        return acc
-      },
-      { active: 0, pending: 0, archived: 0 },
-    ),
-    users: Number.parseInt(userStats[0]?.total || "0"),
-    tributes: tributeStats.reduce(
-      (acc: any, row: any) => {
-        acc[row.status] = Number.parseInt(row.total)
-        return acc
-      },
-      { approved: 0, pending: 0, rejected: 0 },
-    ),
+    memorials: memorialCounts,
+    users: userStats.count || 0,
+    tributes: tributeCounts,
   }
 }

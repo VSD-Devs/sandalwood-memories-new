@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server"
 import { getUserBySessionToken, getSessionCookieName } from "@/lib/auth"
+import { supabase } from "@/lib/database"
 import type { AuthUser } from "@/lib/auth"
 
 /**
@@ -33,55 +34,30 @@ export async function requireAuth(request: NextRequest): Promise<AuthUser> {
 
 /**
  * Check if user owns or can access a memorial
- * For now, we check if they're the owner (created_by or owner_user_id)
+ * For now, we check if they're the owner (created_by)
  * This can be extended later for collaborators
  */
 export async function checkMemorialAccess(
-  memorialId: string, 
+  memorialId: string,
   userId: string
 ): Promise<{ hasAccess: boolean; isOwner: boolean }> {
-  const { neon } = await import("@neondatabase/serverless")
-  
-  function getSql() {
-    const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-    const candidates = rawCandidates
-      .filter((v) => typeof v === "string" && v.trim().length > 0)
-      .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-    for (const url of candidates) {
-      try {
-        return neon(url)
-      } catch {}
-    }
-    throw new Error("DATABASE_URL is not set")
-  }
-
   try {
-    const sql = getSql()
-    const result = await sql`
-      SELECT 
-        id,
-        created_by,
-        owner_user_id,
-        CASE 
-          WHEN created_by = ${userId} OR owner_user_id = ${userId} THEN true
-          ELSE false
-        END as is_owner
-      FROM memorials 
-      WHERE id = ${memorialId}
-      LIMIT 1
-    `
+    const { data: memorial, error } = await supabase
+      .from('memorials')
+      .select('id, created_by')
+      .eq('id', memorialId)
+      .single()
 
-    if (result.length === 0) {
+    if (error || !memorial) {
       return { hasAccess: false, isOwner: false }
     }
 
-    const memorial = result[0]
-    const isOwner = Boolean(memorial.is_owner)
-    
+    const isOwner = String(memorial.created_by) === String(userId)
+
     // For now, access is same as ownership
     // Later we can extend this to check collaborators table
     return { hasAccess: isOwner, isOwner }
-    
+
   } catch (error) {
     console.error("Memorial access check error:", error)
     return { hasAccess: false, isOwner: false }
