@@ -4,7 +4,10 @@
   "installCommand": "pnpm install --no-frozen-lockfile",
   "buildCommand": "pnpm run build",
   "functions": {
-    "app/api/**": {
+    "api/**/*.{js,ts}": {
+      "runtime": "nodejs20.x"
+    },
+    "app/api/**/*.{js,ts}": {
       "runtime": "nodejs20.x"
     }
   }
