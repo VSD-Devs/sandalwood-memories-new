@@ -1,9 +1,10 @@
 {
-  "buildCommand": "pnpm run build",
-  "installCommand": "pnpm install --no-frozen-lockfile",
+  "version": 2,
   "framework": "nextjs",
+  "installCommand": "pnpm install --no-frozen-lockfile",
+  "buildCommand": "pnpm run build",
   "functions": {
-    "app/api/**/*.ts": {
+    "app/api/**": {
       "runtime": "nodejs20.x"
     }
   }
