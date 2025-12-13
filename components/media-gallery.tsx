@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
@@ -73,131 +72,83 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
   }
 
   return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardContent className="p-8">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-serif text-2xl font-semibold">{title}</h2>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={filter === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("all")}
-              className={filter !== "all" ? "bg-transparent" : ""}
-            >
-              All ({media.length})
-            </Button>
-            <Button
-              variant={filter === "image" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("image")}
-              className={filter !== "image" ? "bg-transparent" : ""}
-            >
-              <ImageIcon className="h-4 w-4 mr-1" />
-              Photos ({media.filter((m) => m.file_type === "image").length})
-            </Button>
-            <Button
-              variant={filter === "video" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilter("video")}
-              className={filter !== "video" ? "bg-transparent" : ""}
-            >
-              <Video className="h-4 w-4 mr-1" />
-              Videos ({media.filter((m) => m.file_type === "video").length})
-            </Button>
-            
-            {/* Add upload button when filter is active and user can upload */}
-            {canUpload && onUploadClick && (filter === "video" || filter === "image") && (
-              <Button
-                onClick={onUploadClick}
-                size="sm"
-                className="bg-primary hover:bg-primary/90 text-white ml-2"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {filter === "video" ? "Add Video" : "Add Photo"}
-              </Button>
-            )}
-          </div>
+    <div className="w-full">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 className="font-serif text-3xl md:text-4xl text-slate-900 mb-2 leading-tight">{title}</h2>
+          <p className="text-slate-700 text-base md:text-lg font-medium">{media.length} {media.length === 1 ? 'item' : 'items'}</p>
         </div>
-
-        {/* Usage Indicator for authenticated users who can upload */}
-        {canUpload && memorialId && (
-          <div className="mb-4 p-3 bg-slate-50 rounded-lg border">
-            <MediaUsageIndicator
-              memorialId={memorialId}
-              photoCount={media.filter((m) => m.file_type === "image").length}
-              videoCount={media.filter((m) => m.file_type === "video").length}
-            />
+        {media.length > 0 && (
+          <div className="flex items-center gap-3">
+            <Button
+              variant={filter === "all" ? "default" : "ghost"}
+              size="default"
+              onClick={() => setFilter("all")}
+              className={`${filter === "all" ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-700"} text-sm md:text-base px-4 py-2`}
+            >
+              All
+            </Button>
+            <Button
+              variant={filter === "image" ? "default" : "ghost"}
+              size="default"
+              onClick={() => setFilter("image")}
+              className={`${filter === "image" ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-700"} text-sm md:text-base px-4 py-2`}
+            >
+              Photos
+            </Button>
+            <Button
+              variant={filter === "video" ? "default" : "ghost"}
+              size="default"
+              onClick={() => setFilter("video")}
+              className={`${filter === "video" ? "bg-slate-900 text-white hover:bg-slate-800" : "text-slate-700"} text-sm md:text-base px-4 py-2`}
+            >
+              Videos
+            </Button>
           </div>
         )}
+      </div>
+
+      {/* Usage Indicator for authenticated users who can upload */}
+      {canUpload && memorialId && (
+        <div className="mb-6 pb-6 border-b border-slate-200">
+          <MediaUsageIndicator
+            memorialId={memorialId}
+            photoCount={media.filter((m) => m.file_type === "image").length}
+            videoCount={media.filter((m) => m.file_type === "video").length}
+          />
+        </div>
+      )}
 
         {filteredMedia.length === 0 ? (
-          <div className="py-10">
-            <div className="rounded-xl border border-dashed border-border p-8 md:p-12 bg-gradient-to-br from-primary/5 to-accent/5">
-              <div className="max-w-xl mx-auto text-center">
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-white/80 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  {filter === "video" ? (
-                    <Video className="h-7 w-7 md:h-8 md:w-8 text-primary" />
-                  ) : filter === "image" ? (
-                    <ImageIcon className="h-7 w-7 md:h-8 md:w-8 text-primary" />
-                  ) : (
-                    <ImageIcon className="h-7 w-7 md:h-8 md:w-8 text-primary" />
-                  )}
-                </div>
-                <h3 className="font-serif text-xl md:text-2xl text-foreground mb-2">
-                  {isEmpty 
-                    ? "Start their gallery" 
-                    : filter === "video" 
-                      ? "No videos yet" 
-                      : filter === "image" 
-                        ? "No photos yet"
-                        : "No items match this filter"
-                  }
-                </h3>
-                <p className="text-sm md:text-base text-muted-foreground mb-6">
-                  {isEmpty
-                    ? "Add cherished photos and short videos to bring their story to life. If you don't have any yet, this space will fill up as friends and family contribute."
-                    : filter === "video"
-                      ? "Upload video files up to 500MB or add YouTube links to share video memories."
-                      : filter === "image"
-                        ? "Upload photos up to 10MB to share visual memories and moments."
-                        : "Try switching filters or add new items."}
-                </p>
-                
-                {/* Upload button for empty states */}
-                {canUpload && onUploadClick && (isEmpty || filter === "video" || filter === "image") && (
-                  <Button 
-                    onClick={onUploadClick}
-                    className="bg-primary hover:bg-primary/90 text-white"
-                    size="lg"
-                  >
-                    {filter === "video" ? (
-                      <>
-                        <Video className="h-5 w-5 mr-2" />
-                        Add Videos
-                      </>
-                    ) : filter === "image" ? (
-                      <>
-                        <ImageIcon className="h-5 w-5 mr-2" />
-                        Add Photos
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-5 w-5 mr-2" />
-                        Add First Photos
-                      </>
-                    )}
-                  </Button>
+          <div className="py-16 text-center">
+            <p className="text-slate-600 text-base md:text-lg mb-6">
+              {isEmpty 
+                ? "No photos or videos yet." 
+                : filter === "video" 
+                  ? "No videos yet." 
+                  : filter === "image" 
+                    ? "No photos yet."
+                    : "No items match this filter."}
+            </p>
+            {canUpload && onUploadClick && (isEmpty || filter === "video" || filter === "image") && (
+              <Button 
+                onClick={onUploadClick}
+                variant="outline"
+                className="border-slate-300 text-slate-800 hover:bg-slate-50 text-base"
+              >
+                {filter === "video" ? (
+                  <>
+                    <Video className="h-4 w-4 mr-2" />
+                    Add Videos
+                  </>
+                ) : (
+                  <>
+                    <ImageIcon className="h-4 w-4 mr-2" />
+                    Add Photos
+                  </>
                 )}
-              </div>
-              <div className="mt-6 grid grid-cols-3 md:grid-cols-6 gap-3 opacity-80" aria-hidden>
-                <div className="aspect-square rounded-lg bg-white/60" />
-                <div className="aspect-square rounded-lg bg-white/60" />
-                <div className="aspect-square rounded-lg bg-white/60" />
-                <div className="aspect-square rounded-lg bg-white/60" />
-                <div className="aspect-square rounded-lg bg-white/60" />
-                <div className="aspect-square rounded-lg bg-white/60" />
-              </div>
-            </div>
+              </Button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -218,9 +169,9 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                   // Check if it's a YouTube URL
                   isYouTubeUrl(item.file_url) ? (
                     <div className="w-full h-full bg-gray-900 flex items-center justify-center relative">
-                      <div className="text-center text-white">
-                        <Video className="h-12 w-12 mx-auto mb-2 opacity-80" />
-                        <p className="text-sm opacity-80">YouTube Video</p>
+                    <div className="text-center text-white">
+                      <Video className="h-12 w-12 mx-auto mb-2 opacity-80" />
+                      <p className="text-base opacity-90">YouTube Video</p>
                       </div>
                     </div>
                   ) : (
@@ -236,7 +187,7 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                   <div className="w-full h-full bg-muted flex items-center justify-center">
                     <div className="text-center">
                       <div className="text-4xl mb-2">📄</div>
-                      <p className="text-xs text-muted-foreground truncate">
+                      <p className="text-sm md:text-base text-muted-foreground truncate">
                         {item.original_filename || "Document"}
                       </p>
                     </div>
@@ -245,7 +196,7 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
 
                 {/* Media type indicator */}
                 <div className="absolute top-2 right-2">
-                  <Badge variant="secondary" className="bg-black/50 text-white border-0">
+                  <Badge variant="secondary" className="bg-black/60 text-white border-0 text-xs md:text-sm px-2 py-1">
                     {item.file_type === "video" ? (
                       <Video className="h-3 w-3" />
                     ) : item.file_type === "document" ? (
@@ -268,10 +219,10 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                 {/* Overlay with info */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                   <div className="absolute bottom-2 left-2 right-2">
-                    <p className="text-white text-sm font-medium truncate">
+                    <p className="text-white text-base font-semibold truncate">
                       {item.title || item.original_filename || `${item.file_type} file`}
                     </p>
-                    <div className="flex items-center space-x-2 text-xs text-white/80">
+                    <div className="flex items-center space-x-2 text-sm md:text-base text-white/80">
                       <Calendar className="h-3 w-3" />
                       <span>{format(new Date(item.created_at), "MMM yyyy")}</span>
                       {item.file_size && (
@@ -401,7 +352,6 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
             )}
           </DialogContent>
         </Dialog>
-      </CardContent>
-    </Card>
+    </div>
   )
 }

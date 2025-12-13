@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const sql = getSql()
+
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object

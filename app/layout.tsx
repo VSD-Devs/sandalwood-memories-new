@@ -1,5 +1,4 @@
 import type React from "react"
-import type { Metadata } from "next"
 import { Merriweather } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
@@ -8,6 +7,8 @@ import VerifyBanner from "@/components/verify-banner"
 import { Toaster } from "@/components/ui/toaster"
 import Footer from "@/components/footer"
 import PublicHeader from "@/components/public-header"
+import Script from "next/script"
+import { buildMetadata, siteName, siteUrl } from "@/lib/seo"
 
 const merriweather = Merriweather({
   subsets: ["latin"],
@@ -16,26 +17,12 @@ const merriweather = Merriweather({
   variable: "--font-merriweather",
 })
 
-export const metadata: Metadata = {
-  title: "Sandalwood Memories - Digital Memorial Platform",
-  description: "Create beautiful, personalised memorial pages to honour and celebrate the lives of your loved ones.",
-  generator: "v0.app",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Sandalwood Memories",
-  },
-  formatDetection: {
-    telephone: false,
-  },
-  other: {
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Sandalwood Memories",
-    "msapplication-tap-highlight": "no",
-  },
-}
+export const metadata = buildMetadata({
+  title: "Digital memorial platform",
+  description:
+    "Create beautiful, private memorial pages with Sandalwood Memories. Invite family, collect stories, and share photos with accessible, UK-friendly design.",
+  path: "/",
+})
 
 export const viewport = {
   width: "device-width",
@@ -50,9 +37,38 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Organization",
+        name: siteName,
+        url: siteUrl,
+        logo: `${siteUrl}/logo.png`,
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            contactType: "customer service",
+            telephone: "+44 20 3003 4855",
+            areaServed: "GB",
+            availableLanguage: "English",
+          },
+        ],
+      },
+      {
+        "@type": "WebSite",
+        name: siteName,
+        url: siteUrl,
+      },
+    ],
+  }
+
   return (
-    <html lang="en" className={`${merriweather.variable} antialiased`}>
+    <html lang="en-GB" className={`${merriweather.variable} antialiased`}>
       <body className="font-sans" suppressHydrationWarning>
+        <Script id="structured-data" type="application/ld+json" strategy="afterInteractive">
+          {JSON.stringify(structuredData)}
+        </Script>
         <AuthProvider>
           <AppStateProvider>
             <PublicHeader />

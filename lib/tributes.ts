@@ -1,13 +1,16 @@
 import { supabase } from "./database"
 import { getSessionCookieName, getUserBySessionToken } from "./auth"
 
+type TributeStatus = 'pending' | 'approved' | 'rejected'
+
 export interface Tribute {
   id: string
   memorial_id: string
   author_name: string
   author_email?: string
   message: string
-  is_approved: boolean
+  is_approved?: boolean
+  status?: TributeStatus
   created_at: string
   updated_at?: string
   ip_address?: string
@@ -24,28 +27,82 @@ export interface TributeCreateData {
 }
 
 /**
+ * Ensure the tribute object always carries both boolean and string status fields.
+ * This makes the API consistent even if the database schema differs between
+ * environments (e.g. `status` text vs `is_approved` boolean).
+ */
+function normalizeTribute(tribute: any): Tribute {
+  const derivedStatus: TributeStatus =
+    tribute?.status ||
+    (tribute?.is_approved === false ? 'pending' : 'approved')
+
+  const derivedIsApproved =
+    typeof tribute?.is_approved === 'boolean'
+      ? tribute.is_approved
+      : derivedStatus === 'approved'
+
+  return {
+    ...tribute,
+    status: derivedStatus,
+    is_approved: derivedIsApproved,
+  }
+}
+
+/**
  * Create a new tribute
  */
 export async function createTribute(data: TributeCreateData): Promise<Tribute> {
-  const { data: tribute, error } = await supabase
-    .from('tributes')
-    .insert({
-      memorial_id: data.memorial_id,
-      author_name: data.author_name,
-      author_email: data.author_email || null,
-      message: data.message,
-      ip_address: data.ip_address || null,
-      user_agent: data.user_agent || null,
-      is_approved: true // Auto-approve all tributes
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw new Error(`Failed to create tribute: ${error.message}`)
+  const basePayload = {
+    memorial_id: data.memorial_id,
+    author_name: data.author_name,
+    author_email: data.author_email || null,
+    message: data.message,
   }
 
-  return tribute as Tribute
+  const moderationPayload = {
+    status: 'approved' as TributeStatus,
+    is_approved: true, // backward compatibility with earlier schema
+  }
+
+  // Only attach optional fields if provided to avoid schema mismatches
+  const optionalPayload: Record<string, string | null> = {}
+  if (data.ip_address) optionalPayload.ip_address = data.ip_address
+  if (data.user_agent) optionalPayload.user_agent = data.user_agent
+
+  const payloadVariants: Array<Record<string, any>> = [
+    { ...basePayload, ...optionalPayload, ...moderationPayload },
+    { ...basePayload, ...moderationPayload },
+    { ...basePayload },
+  ]
+
+  let lastError: any = null
+
+  for (const payload of payloadVariants) {
+    const { data: tribute, error } = await supabase
+      .from('tributes')
+      .insert(payload)
+      .select()
+      .single()
+
+    if (!error && tribute) {
+      return normalizeTribute(tribute)
+    }
+
+    lastError = error
+
+    // Only retry on missing-column style errors; anything else should surface immediately
+    const message = error?.message?.toLowerCase?.() || ''
+    const looksLikeSchemaGap =
+      message.includes('schema cache') ||
+      message.includes('does not exist') ||
+      message.includes('column')
+
+    if (!looksLikeSchemaGap) {
+      break
+    }
+  }
+
+  throw new Error(`Failed to create tribute: ${lastError?.message || 'Unknown error'}`)
 }
 
 /**
@@ -78,7 +135,7 @@ export async function getTributes(
     throw new Error(`Failed to fetch tributes: ${error.message}`)
   }
 
-  return tributes as Tribute[]
+  return (tributes || []).map(normalizeTribute)
 }
 
 /**
@@ -122,7 +179,7 @@ export async function getTributesForOwner(
   }
 
   return tributes?.map(tribute => ({
-    ...tribute,
+    ...normalizeTribute(tribute),
     memorial_title: tribute.memorials?.title || '',
     memorial_full_name: tribute.memorials?.full_name || '',
     memorials: undefined // Remove the nested memorials object

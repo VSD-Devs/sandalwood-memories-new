@@ -7,32 +7,16 @@ import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Heart, CreditCard, User as UserIcon, Calendar, Settings, LogOut, Lock, MailCheck, Mail } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
-import { UserNav } from "@/components/user-nav"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ProfilePage() {
-  const { user, logout, changePassword, sendVerificationEmail } = useAuth()
+  const { user, logout, changePassword, changeEmail, sendVerificationEmail } = useAuth()
 
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <header className="border-b border-border/50 bg-white/80 backdrop-blur-sm sticky top-0 z-50" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-16">
-              <Link href="/" className="flex items-center gap-2" aria-label="Go home">
-                <Heart className="h-6 w-6 text-primary" aria-hidden />
-                <span className="font-serif font-bold text-xl text-foreground">Sandalwood Memories</span>
-              </Link>
-              <div className="flex items-center gap-3">
-                <Link href="/">
-                  <Button variant="outline" className="bg-transparent">Back</Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </header>
         <div className="max-w-3xl mx-auto p-6">
           <Card>
             <CardHeader>
@@ -78,9 +62,51 @@ export default function ProfilePage() {
   const planLabel = useMemo(() => "Free plan", [])
   const { toast } = useToast()
   const [isPwOpen, setPwOpen] = useState(false)
+  const [isEmailOpen, setEmailOpen] = useState(false)
+  const [newEmail, setNewEmail] = useState(user.email)
+  const [emailPassword, setEmailPassword] = useState("")
+  const [isEmailSaving, setIsEmailSaving] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+
+  const handleChangeEmail = async () => {
+    const trimmedEmail = newEmail.trim().toLowerCase()
+    if (!trimmedEmail || !trimmedEmail.includes("@")) {
+      toast({ title: "Please enter a valid email address." })
+      return
+    }
+    if (emailPassword.length < 8) {
+      toast({ title: "Password required", description: "Add your current password to confirm the change." })
+      return
+    }
+
+    setIsEmailSaving(true)
+    const result = await changeEmail(emailPassword, trimmedEmail)
+    setIsEmailSaving(false)
+
+    if (!result.ok) {
+      toast({ title: result.error || "Could not update email" })
+      return
+    }
+
+    setEmailOpen(false)
+    setEmailPassword("")
+    toast({
+      title: "Email updated",
+      description: result.verifyLink
+        ? "We have sent a fresh verification link to your new address."
+        : "Your sign-in email has been refreshed.",
+    })
+
+    if (result.verifyLink && typeof navigator !== "undefined" && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(result.verifyLink)
+      } catch {
+        // Clipboard access can be blocked; ignore
+      }
+    }
+  }
 
   const handleChangePassword = async () => {
     if (newPassword.length < 8) {
@@ -110,24 +136,6 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-border/50 bg-white/80 backdrop-blur-sm sticky top-0 z-50" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-              <Link href="/memorial" className="flex items-center gap-2" aria-label="Go to My memorials">
-              <Heart className="h-6 w-6 text-primary" aria-hidden />
-                <span className="font-serif font-bold text-xl text-foreground">Sandalwood Memories</span>
-            </Link>
-            <div className="hidden md:flex items-center gap-3">
-              <Link href="/memorial" className="text-sm text-muted-foreground hover:text-foreground">My memorials</Link>
-              <Link href="/create">
-                <Button variant="outline" className="bg-transparent">Create memorial</Button>
-              </Link>
-              <UserNav />
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="max-w-6xl mx-auto p-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
@@ -172,20 +180,62 @@ export default function ProfilePage() {
                 <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5" /> Account settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                 <div className="flex items-center justify-between">
+                 <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                   <div>
                     <div className="font-medium">Email</div>
-                     <div className="text-sm text-muted-foreground">{user.email}</div>
+                     <div className="text-sm text-muted-foreground break-all">{user.email}</div>
+                     {!user.emailVerified && (
+                       <p className="text-xs text-amber-700 mt-1">Please verify your address to keep your account secure.</p>
+                     )}
                   </div>
-                   {!user.emailVerified ? (
-                     <Button variant="outline" className="bg-transparent inline-flex items-center gap-2" onClick={handleSendVerification}>
-                       <Mail className="h-4 w-4" /> Verify email
-                     </Button>
-                   ) : (
-                     <Button variant="outline" className="bg-transparent inline-flex items-center gap-2" disabled>
-                       <MailCheck className="h-4 w-4" /> Verified
-                     </Button>
-                   )}
+                   <div className="flex flex-wrap gap-2">
+                     <Dialog
+                       open={isEmailOpen}
+                       onOpenChange={(next) => {
+                         setEmailOpen(next)
+                         if (next) {
+                           setNewEmail(user.email)
+                           setEmailPassword("")
+                         }
+                       }}
+                     >
+                       <DialogTrigger asChild>
+                         <Button variant="outline" className="bg-transparent inline-flex items-center gap-2">
+                           <Mail className="h-4 w-4" /> Update email
+                         </Button>
+                       </DialogTrigger>
+                       <DialogContent>
+                         <DialogHeader>
+                           <DialogTitle>Update email address</DialogTitle>
+                         </DialogHeader>
+                         <div className="space-y-3 py-2">
+                           <div>
+                             <label htmlFor="new_email" className="text-sm">New email</label>
+                             <Input id="new_email" type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} />
+                           </div>
+                           <div>
+                             <label htmlFor="email_password" className="text-sm">Current password</label>
+                             <Input id="email_password" type="password" value={emailPassword} onChange={(e) => setEmailPassword(e.target.value)} />
+                             <p className="text-xs text-muted-foreground mt-1">We use this to confirm it is really you.</p>
+                           </div>
+                           <p className="text-xs text-muted-foreground">We will send a fresh verification link to your new address.</p>
+                         </div>
+                         <DialogFooter>
+                           <Button variant="outline" className="bg-transparent" onClick={() => setEmailOpen(false)}>Cancel</Button>
+                           <Button onClick={handleChangeEmail} disabled={isEmailSaving}>{isEmailSaving ? "Updating..." : "Update email"}</Button>
+                         </DialogFooter>
+                       </DialogContent>
+                     </Dialog>
+                     {!user.emailVerified ? (
+                       <Button variant="outline" className="bg-transparent inline-flex items-center gap-2" onClick={handleSendVerification}>
+                         <Mail className="h-4 w-4" /> Verify email
+                       </Button>
+                     ) : (
+                       <Button variant="outline" className="bg-transparent inline-flex items-center gap-2" disabled>
+                         <MailCheck className="h-4 w-4" /> Verified
+                       </Button>
+                     )}
+                   </div>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>

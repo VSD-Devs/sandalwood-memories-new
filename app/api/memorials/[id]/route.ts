@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { supabase } from "@/lib/database"
 import { getAuthenticatedUser } from "@/lib/auth-helpers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -24,15 +25,22 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
-    // Check access permissions
-    const isOwner = user && String(memorial.created_by) === String(user.id)
+    const access = await getMemorialAccess(id, user?.id)
 
-    // For now, allow public access to all memorials
-    // Later we can add privacy controls here
-    const canAccess = true // memorial.is_public || isOwner || (user && memorial.allow_public_access)
-
-    if (!canAccess) {
+    if (!access) {
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.canView) {
+      return NextResponse.json({
+        error: "This memorial is private",
+        requiresAccess: true,
+        memorialId: memorial.id,
+        memorialSlug: memorial.slug,
+        is_public: memorial.is_public,
+        accessStatus: access.accessStatus,
+        requestStatus: access.requestStatus
+      }, { status: 403 })
     }
 
     // Return the memorial data
@@ -41,9 +49,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       creator_name: memorial.users?.name || '',
       creator_email: memorial.users?.email || '',
       users: undefined, // Remove the nested users object
-      // Add computed fields
-      isOwner: Boolean(isOwner),
-      canEdit: Boolean(isOwner),
+      isOwner: Boolean(access.isOwner),
+      canEdit: Boolean(access.isOwner || access.isCollaborator),
+      accessStatus: access.accessStatus,
+      requestStatus: access.requestStatus
     })
 
   } catch (err) {
@@ -74,22 +83,16 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
       cover_image_url,
       is_alive,
       burial_location,
+      is_public,
     } = body
 
     // Check if user owns this memorial
-    const { data: memorial, error: checkError } = await supabase
-      .from('memorials')
-      .select('created_by')
-      .eq('id', id)
-      .single()
-
-    if (checkError || !memorial) {
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
-    const isOwner = String(memorial.created_by) === String(user.id)
-
-    if (!isOwner) {
+    if (!access.isOwner) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403 })
     }
 
@@ -108,6 +111,7 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     if (cover_image_url !== undefined) updateData.cover_image_url = cover_image_url
     if (is_alive !== undefined) updateData.is_alive = is_alive
     if (burial_location !== undefined) updateData.burial_location = burial_location
+    if (is_public !== undefined) updateData.is_public = Boolean(is_public)
 
     const { data: updatedMemorial, error: updateError } = await supabase
       .from('memorials')
@@ -140,19 +144,12 @@ export async function DELETE(request: NextRequest, context: { params: Promise<{ 
     }
 
     // Check if user owns this memorial
-    const { data: memorial, error: checkError } = await supabase
-      .from('memorials')
-      .select('created_by')
-      .eq('id', id)
-      .single()
-
-    if (checkError || !memorial) {
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
-    const isOwner = String(memorial.created_by) === String(user.id)
-
-    if (!isOwner) {
+    if (!access.isOwner) {
       return NextResponse.json({ error: "Permission denied" }, { status: 403 })
     }
 

@@ -2,7 +2,6 @@
 
 import { useState, useMemo } from "react"
 import { useAuth } from "@/contexts/auth-context"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Calendar, MapPin, Heart, Star, BookOpen, PartyPopper, Plus, Upload, X, Trash2, Edit, ImageIcon, Video, FileText, Link, Filter, Search, ChevronDown, Grid, List } from "lucide-react"
+import { Calendar, Heart, Star, BookOpen, PartyPopper, Plus, Upload, X, Trash2, Edit, ImageIcon, Video, FileText, Link, Search, ChevronDown } from "lucide-react"
 import { format } from "date-fns"
 import TimelineEventMedia from "./timeline-event-media"
 
@@ -24,6 +23,7 @@ interface TimelineEvent {
   event_date: string | null
   category: TimelineCategory
   media_id: string | null
+  gallery_media_ids?: string[] | null
   created_at: string
 }
 
@@ -33,6 +33,11 @@ interface MediaItem {
   file_type: "image" | "video" | "document"
   title?: string | null
   description?: string | null
+  created_at?: string
+  memorial_id?: string
+  uploaded_by?: string | null
+  original_filename?: string
+  file_size?: number
 }
 
 interface TimelineProps {
@@ -48,34 +53,34 @@ const categoryConfig = {
   milestone: {
     label: "Milestone",
     icon: Heart,
-    color: "bg-indigo-500",
-    bgColor: "bg-indigo-50",
-    textColor: "text-indigo-800",
-    borderColor: "border-indigo-300"
+    color: "bg-[#1B3B5F]",
+    bgColor: "bg-blue-50",
+    textColor: "text-blue-900",
+    borderColor: "border-blue-200"
   },
   achievement: {
     label: "Achievement", 
     icon: Star,
-    color: "bg-amber-500",
-    bgColor: "bg-amber-50",
-    textColor: "text-amber-800",
-    borderColor: "border-amber-300"
+    color: "bg-[#1B3B5F]",
+    bgColor: "bg-blue-50",
+    textColor: "text-blue-900",
+    borderColor: "border-blue-200"
   },
   memory: {
     label: "Memory",
     icon: BookOpen,
-    color: "bg-rose-500", 
-    bgColor: "bg-rose-50",
-    textColor: "text-rose-800",
-    borderColor: "border-rose-300"
+    color: "bg-[#1B3B5F]", 
+    bgColor: "bg-blue-50",
+    textColor: "text-blue-900",
+    borderColor: "border-blue-200"
   },
   celebration: {
     label: "Celebration",
     icon: PartyPopper,
-    color: "bg-emerald-500",
-    bgColor: "bg-emerald-50", 
-    textColor: "text-emerald-800",
-    borderColor: "border-emerald-300"
+    color: "bg-[#1B3B5F]",
+    bgColor: "bg-blue-50", 
+    textColor: "text-blue-900",
+    borderColor: "border-blue-200"
   }
 }
 
@@ -129,9 +134,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
   const [searchQuery, setSearchQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<TimelineCategory | "all">("all")
   const [yearFilter, setYearFilter] = useState<string>("all")
-  const [viewMode, setViewMode] = useState<"full" | "compact">("full")
-  const [showFilters, setShowFilters] = useState(false)
   const [itemsToShow, setItemsToShow] = useState(10)
+  const [expandedEvents, setExpandedEvents] = useState<Record<string, boolean>>({})
   const ITEMS_PER_PAGE = 10
   
   // Form state
@@ -140,13 +144,14 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     description: "",
     date: "", 
     category: "milestone" as TimelineCategory,
-    selectedMediaId: ""
+    selectedMediaId: "",
+    galleryMediaIds: [] as string[],
   })
 
   // Media upload state
   const [uploadingMedia, setUploadingMedia] = useState(false)
-  const [mediaFile, setMediaFile] = useState<File | null>(null)
-  const [mediaPreview, setMediaPreview] = useState<string>("")
+  const [mediaFiles, setMediaFiles] = useState<File[]>([])
+  const [mediaPreviews, setMediaPreviews] = useState<string[]>([])
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [mediaUploadMode, setMediaUploadMode] = useState<"select" | "upload" | "youtube">("select")
 
@@ -170,6 +175,17 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     })
     return Array.from(years).sort((a, b) => a - b)
   }, [sortedEvents])
+
+  const quickFilters = useMemo(
+    () => [
+      { key: "all", label: "All memories" },
+      ...Object.entries(categoryConfig).map(([key, config]) => ({
+        key,
+        label: config.label
+      }))
+    ],
+    []
+  )
 
   // Filter and paginate events
   const filteredAndPaginatedEvents = useMemo(() => {
@@ -208,14 +224,38 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     }
   }, [sortedEvents, searchQuery, categoryFilter, yearFilter, itemsToShow])
 
-  // Always show template for better UX
-  const showTemplate = true
+  const hasVisibleEvents = filteredAndPaginatedEvents.events.length > 0
 
-  // Helper function to get media item by ID
-  const getMediaById = (mediaId: string | null) => {
-    if (!mediaId) return null
-    return media.find(item => item.id === mediaId) || null
-  }
+  const groupedEvents = useMemo(() => {
+    const buckets: Record<string, TimelineEvent[]> = {}
+
+    filteredAndPaginatedEvents.events.forEach((event) => {
+      const yearLabel = event.event_date
+        ? new Date(event.event_date).getFullYear().toString()
+        : "No date set"
+
+      if (!buckets[yearLabel]) {
+        buckets[yearLabel] = []
+      }
+
+      buckets[yearLabel].push(event)
+    })
+
+    return Object.entries(buckets)
+      .map(([year, items]) => ({
+        year,
+        items: items.sort((a, b) => {
+          const aDate = a.event_date ? new Date(a.event_date).getTime() : new Date(a.created_at).getTime()
+          const bDate = b.event_date ? new Date(b.event_date).getTime() : new Date(b.created_at).getTime()
+          return aDate - bDate
+        })
+      }))
+      .sort((a, b) => {
+        const aYear = a.year === "No date set" ? Number.POSITIVE_INFINITY : parseInt(a.year, 10)
+        const bYear = b.year === "No date set" ? Number.POSITIVE_INFINITY : parseInt(b.year, 10)
+        return aYear - bYear
+      })
+  }, [filteredAndPaginatedEvents.events])
 
   // Helper functions for UX enhancements
   const handleLoadMore = () => {
@@ -244,6 +284,45 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     setItemsToShow(ITEMS_PER_PAGE) // Reset pagination when filtering
   }
 
+  const toggleGallerySelection = (mediaId: string) => {
+    setForm((prev) => {
+      const exists = prev.galleryMediaIds.includes(mediaId)
+      const updated = exists
+        ? prev.galleryMediaIds.filter((id) => id !== mediaId)
+        : [...prev.galleryMediaIds, mediaId]
+
+      const selectedMediaId = prev.selectedMediaId || (!exists ? mediaId : updated[0] || "")
+
+      return {
+        ...prev,
+        galleryMediaIds: updated,
+        selectedMediaId,
+      }
+    })
+  }
+
+  const setCoverMedia = (mediaId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      selectedMediaId: mediaId,
+      galleryMediaIds: prev.galleryMediaIds.includes(mediaId)
+        ? prev.galleryMediaIds
+        : [...prev.galleryMediaIds, mediaId],
+    }))
+  }
+
+  const toggleEventDetails = (eventId: string) => {
+    setExpandedEvents((prev) => ({
+      ...prev,
+      [eventId]: !prev[eventId]
+    }))
+  }
+
+  const truncateText = (text: string, length = 200) => {
+    if (!text) return ""
+    return text.length > length ? `${text.slice(0, length)}…` : text
+  }
+
 
   const handleStageClick = (stage: typeof timelineStages[0]) => {
     setForm({
@@ -251,7 +330,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
       description: "",
       date: "",
       category: stage.category,
-      selectedMediaId: ""
+      selectedMediaId: "",
+      galleryMediaIds: [],
     })
     setSelectedStage(stage.id)
     setEditingEvent(null)
@@ -264,7 +344,12 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
       description: event.description || "",
       date: event.event_date || "",
       category: event.category,
-      selectedMediaId: event.media_id || ""
+      selectedMediaId: event.media_id || event.gallery_media_ids?.[0] || "",
+      galleryMediaIds: Array.isArray(event.gallery_media_ids)
+        ? event.gallery_media_ids.filter((id): id is string => Boolean(id))
+        : event.media_id
+          ? [event.media_id]
+          : [],
     })
     setEditingEvent(event)
     setSelectedStage(null)
@@ -273,42 +358,47 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
   }
 
   const resetMediaState = () => {
-    setMediaFile(null)
-    setMediaPreview("")
+    setMediaFiles([])
+    setMediaPreviews([])
     setYoutubeUrl("")
     setMediaUploadMode("select")
   }
 
   const handleMediaFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (!files.length) return
 
-    // Validate file type
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
-      alert('Please select an image or video file')
-      return
-    }
-    
-    // Validate file size
-    const maxSize = file.type.startsWith('image/') ? 10 * 1024 * 1024 : 500 * 1024 * 1024
-    if (file.size > maxSize) {
-      const maxSizeMB = Math.round(maxSize / (1024 * 1024))
-      alert(`File too large. Maximum size: ${maxSizeMB}MB`)
-      return
-    }
-    
-    setMediaFile(file)
-    
-    // Create preview for images
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setMediaPreview(e.target?.result as string)
+    const valid: File[] = []
+
+    for (const file of files) {
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        alert("Please select images or videos only")
+        return
       }
-      reader.readAsDataURL(file)
-    } else {
-      setMediaPreview("")
+      const maxSize = file.type.startsWith("image/") ? 10 * 1024 * 1024 : 500 * 1024 * 1024
+      if (file.size > maxSize) {
+        const maxSizeMB = Math.round(maxSize / (1024 * 1024))
+        alert(`File too large. Maximum size: ${maxSizeMB}MB`)
+        return
+      }
+      valid.push(file)
     }
+
+    setMediaPreviews([])
+    valid.forEach((file) => {
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader()
+        reader.onload = (ev) => {
+          const result = ev.target?.result
+          if (typeof result === "string") {
+            setMediaPreviews((prev) => [...prev, result])
+          }
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+
+    setMediaFiles(valid)
   }
 
 
@@ -318,7 +408,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
       description: "", 
       date: "",
       category: "milestone",
-      selectedMediaId: ""
+      selectedMediaId: "",
+      galleryMediaIds: [],
     })
     setSelectedStage(null)
     setEditingEvent(null)
@@ -350,6 +441,57 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     }
   }
 
+  const handleRemoveEventMedia = async (eventId: string, mediaId?: string) => {
+    const targetEvent = events.find((event) => event.id === eventId)
+    if (!targetEvent) return
+
+    const removeId = mediaId || targetEvent.media_id
+    if (!removeId) return
+
+    if (!confirm('Remove this photo or video from this timeline entry?')) {
+      return
+    }
+
+    const remainingGallery = Array.isArray(targetEvent.gallery_media_ids)
+      ? targetEvent.gallery_media_ids.filter((id) => id && id !== removeId)
+      : []
+    const newCover = removeId === targetEvent.media_id ? (remainingGallery[0] || null) : targetEvent.media_id
+
+    try {
+      const response = await fetch(`/api/memorials/${memorialId}/timeline/${eventId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: targetEvent.title,
+          description: targetEvent.description ?? null,
+          event_date: targetEvent.event_date ?? null,
+          category: targetEvent.category,
+          media_id: newCover,
+          gallery_media_ids: remainingGallery
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to detach media from timeline event')
+      }
+
+      const updatedEvents = events.map((event) =>
+        event.id === eventId
+          ? {
+              ...event,
+              media_id: newCover,
+              gallery_media_ids: remainingGallery,
+            }
+          : event
+      )
+      onEventsChange?.(updatedEvents)
+    } catch (error) {
+      console.error('Failed to remove media from timeline event:', error)
+      alert('Could not remove this photo or video. Please try again.')
+    }
+  }
+
   const handleSubmit = async () => {
     if (!form.title.trim()) {
       alert('Please enter a title')
@@ -370,54 +512,62 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     try {
       setIsSubmitting(true)
       let finalMediaId = form.selectedMediaId
+      let galleryIds = [...form.galleryMediaIds]
+
+      const pushGalleryId = (id: string | null | undefined) => {
+        if (!id) return
+        galleryIds.push(id)
+        if (!finalMediaId) {
+          finalMediaId = id
+        }
+      }
 
       // Handle direct media upload
-      if (mediaUploadMode === "upload" && mediaFile) {
+      if (mediaUploadMode === "upload" && mediaFiles.length > 0) {
         setUploadingMedia(true)
         try {
-          // Upload file to media system
-          const formData = new FormData()
-          formData.append('file', mediaFile)
-          formData.append('title', `Timeline: ${form.title}`)
-          formData.append('description', form.description || '')
-          
-          const uploadResponse = await fetch(`/api/memorials/${memorialId}/media/upload`, {
-            method: 'POST',
-            body: formData,
-          })
-          
-          if (uploadResponse.ok) {
+          for (const file of mediaFiles) {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('title', `Timeline: ${form.title}`)
+            formData.append('description', form.description || '')
+            
+            const uploadResponse = await fetch(`/api/memorials/${memorialId}/media/upload`, {
+              method: 'POST',
+              body: formData,
+            })
+            
+            if (!uploadResponse.ok) {
+              throw new Error('Failed to upload media')
+            }
+
             const uploadData = await uploadResponse.json()
             const fileUrl = uploadData.items?.[0]?.file_url || uploadData.file_url || uploadData.url
             
-            if (fileUrl) {
-              // Save to media database
-              const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  items: [{
-                    file_url: fileUrl,
-                    file_type: mediaFile.type.startsWith('image/') ? 'image' : 'video',
-                    title: `Timeline: ${form.title}`,
-                    description: form.description || null,
-                    uploaded_by: user?.id || null
-                  }]
-                })
+            if (!fileUrl) continue
+
+            const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                items: [{
+                  file_url: fileUrl,
+                  file_type: file.type.startsWith('image/') ? 'image' : 'video',
+                  title: `Timeline: ${form.title}`,
+                  description: form.description || null,
+                  uploaded_by: user?.id || null
+                }]
               })
-              
-              if (mediaResponse.ok) {
-                const savedMedia = await mediaResponse.json()
-                const newMediaItem = savedMedia.items?.[0]
-                if (newMediaItem) {
-                  finalMediaId = newMediaItem.id
-                  // Notify parent component about new media
-                  onMediaUpload?.(newMediaItem)
-                }
+            })
+            
+            if (mediaResponse.ok) {
+              const savedMedia = await mediaResponse.json()
+              const newMediaItem = savedMedia.items?.[0]
+              if (newMediaItem) {
+                pushGalleryId(newMediaItem.id)
+                onMediaUpload?.(newMediaItem)
               }
             }
-          } else {
-            throw new Error('Failed to upload media')
           }
         } catch (error) {
           console.error('Media upload failed:', error)
@@ -450,8 +600,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             const savedMedia = await mediaResponse.json()
             const newMediaItem = savedMedia.items?.[0]
             if (newMediaItem) {
-              finalMediaId = newMediaItem.id
-              // Notify parent component about new media
+              pushGalleryId(newMediaItem.id)
               onMediaUpload?.(newMediaItem)
             }
           }
@@ -461,6 +610,14 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
           return
         }
       }
+
+      // If user selected existing items and no cover set, use first
+      if (!finalMediaId && galleryIds.length > 0) {
+        finalMediaId = galleryIds[0]
+      }
+
+      // Deduplicate gallery and ensure cover included
+      galleryIds = Array.from(new Set([...(finalMediaId ? [finalMediaId] : []), ...galleryIds]))
 
       if (editingEvent) {
         // Update existing event
@@ -473,7 +630,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             description: form.description.trim() || null,
             event_date: form.date.trim(),
             category: form.category,
-            media_id: finalMediaId || null
+            media_id: finalMediaId || null,
+            gallery_media_ids: galleryIds,
           })
         })
         
@@ -488,10 +646,11 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             ? {
                 ...event,
                 title: form.title.trim(),
-                description: form.description.trim() || null,
+                description: form.description.trim() || "",
                 event_date: form.date || null,
                 category: form.category,
-                media_id: finalMediaId || null
+                media_id: finalMediaId || null,
+                gallery_media_ids: galleryIds,
               }
             : event
         ).sort((a, b) => {
@@ -508,7 +667,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
           description: form.description.trim() || null,
           event_date: form.date.trim(),
           category: form.category,
-          media_id: finalMediaId || null
+          media_id: finalMediaId || null,
+          gallery_media_ids: galleryIds,
         }
         
         const response = await fetch(`/api/memorials/${memorialId}/timeline`, {
@@ -573,637 +733,552 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     return youtubeRegex.test(url)
   }
 
-  return (
-    <Card className="border-0 shadow-lg bg-white">
-      <CardHeader className="pb-6">
-        <div className="flex items-center justify-between mb-6">
-          <CardTitle className="font-serif text-2xl font-semibold text-slate-900">Life Timeline</CardTitle>
-          <div className="flex items-center gap-2">
-            {events.length > 0 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                Filters
-              </Button>
+  const renderEventCard = (event: TimelineEvent, index: number, isLeft: boolean) => {
+    const config = getCategoryConfig(event.category)
+    const Icon = config.icon
+    // Default to expanded so memories are visible until the user hides them
+    const isExpanded = expandedEvents[event.id] ?? true
+    const eventDate = event.event_date ? formatEventDate(event.event_date) : null
+
+    return (
+      <div 
+        key={event.id} 
+        className={`flex ${isLeft ? 'justify-start' : 'justify-end'} mb-12 md:mb-16`}
+      >
+        <div className={`w-full md:w-[45%] max-w-lg ${isLeft ? 'md:pr-8' : 'md:pl-8'} group`}>
+          <div className="space-y-3">
+            {eventDate && (
+              <p className="text-sm font-semibold text-blue-800 mb-1">
+                {eventDate}
+              </p>
             )}
-            {canEdit && !showTemplate && (
-              <Button onClick={() => setIsModalOpen(true)} size="sm" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Add Event
-              </Button>
+            <h5 className="font-serif text-xl md:text-2xl font-semibold text-slate-900 leading-tight group-hover:text-blue-700 transition-colors">
+              {event.title}
+            </h5>
+            {event.description && (
+              <p className="text-slate-600 leading-relaxed text-[15px] md:text-base">
+                {isExpanded ? event.description : truncateText(event.description, 300)}
+              </p>
+            )}
+            
+            {isExpanded && (
+              <div className="mt-4">
+                <TimelineEventMedia
+                  eventId={event.id}
+                  eventTitle={event.title}
+                  eventDate={event.event_date}
+                  primaryMediaId={event.media_id}
+                  galleryMediaIds={event.gallery_media_ids || []}
+                  allMedia={media.map(m => ({ ...m, created_at: m.created_at || new Date().toISOString() }))}
+                  canEdit={canEdit}
+                  onRemoveMedia={(mediaId) => handleRemoveEventMedia(event.id, mediaId)}
+                />
+              </div>
+            )}
+
+            {canEdit && (
+              <div className="flex items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => toggleEventDetails(event.id)}
+                  className="text-blue-600 hover:text-blue-700 h-8 text-xs"
+                >
+                  {isExpanded ? "Hide details" : "View details"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleEditEvent(event)}
+                  className="text-blue-600 hover:text-blue-700 h-8 text-xs"
+                >
+                  <Edit className="h-3 w-3 mr-1" aria-hidden />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleDeleteEvent(event.id)}
+                  className="text-red-600 hover:text-red-700 h-8 text-xs"
+                >
+                  <Trash2 className="h-3 w-3 mr-1" aria-hidden />
+                  Delete
+                </Button>
+              </div>
             )}
           </div>
         </div>
+      </div>
+    )
+  }
 
-        {/* Filter Controls */}
-        {showFilters && events.length > 0 && (
-          <div className="space-y-4 p-4 bg-slate-50 rounded-lg border">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Search */}
-              <div className="flex-1 min-w-64">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search timeline events..."
-                    value={searchQuery}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10"
-                  />
+  return (
+    <div className="w-full">
+      <div className="mb-12">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h2 className="font-serif text-2xl md:text-3xl text-slate-900 mb-2">Life remembered</h2>
+            <p className="text-blue-600 text-sm">
+              {filteredAndPaginatedEvents.totalUnfiltered} {filteredAndPaginatedEvents.totalUnfiltered === 1 ? 'memory' : 'memories'}
+              {availableYears.length > 0 && ` · ${availableYears.length} ${availableYears.length === 1 ? 'year' : 'years'}`}
+            </p>
+          </div>
+        </div>
+
+        {(searchQuery || categoryFilter !== "all" || yearFilter !== "all") && (
+          <div className="mb-8 flex items-center gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" aria-hidden />
+              <Input
+                placeholder="Search memories..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 border-slate-300"
+              />
+            </div>
+            {(categoryFilter !== "all" || yearFilter !== "all" || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearFilters}
+                className="text-slate-600 hover:text-slate-900"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Clear filters
+              </Button>
+            )}
+          </div>
+        )}
+      </div>
+      
+      <div className="space-y-10">
+        {!hasVisibleEvents && (
+          <div className="py-16 text-center">
+            <p className="text-blue-600 mb-6">
+              No memories yet. Begin the story with a treasured moment.
+            </p>
+            {canEdit && (
+              <Button
+                variant="outline"
+                className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                onClick={() => {
+                  resetForm()
+                  setIsModalOpen(true)
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add the first memory
+              </Button>
+            )}
+          </div>
+        )}
+
+
+        {hasVisibleEvents && (
+          <div className="relative rounded-2xl bg-gradient-to-b from-blue-50/50 via-white to-blue-50/30 px-4 py-8 md:px-8 md:py-12 border border-blue-100/50">
+            {/* Vertical timeline line */}
+            <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-blue-300/60 -translate-x-1/2 z-0" aria-hidden />
+            
+            {groupedEvents.map((group, groupIndex) => (
+              <div key={group.year} className="relative mb-24 md:mb-32 last:mb-0">
+                {/* Year separator - only show if not the first year */}
+                {groupIndex > 0 && (
+                  <div className="relative mb-16 md:mb-20 mt-8 md:mt-12">
+                    <div className="absolute left-1/2 -translate-x-1/2 w-full flex items-center z-10">
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300/60 to-transparent"></div>
+                      <div className="mx-4 px-4 py-1.5 bg-white rounded-full border border-blue-200/60 shadow-sm">
+                        <span className="text-sm font-semibold text-blue-700 whitespace-nowrap">
+                          {group.year}
+                        </span>
+                      </div>
+                      <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300/60 to-transparent"></div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Year in background */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full pointer-events-none z-0">
+                  <div className="text-[120px] md:text-[180px] lg:text-[240px] font-bold text-blue-200/40 leading-none tracking-tight text-center select-none">
+                    {group.year}
+                  </div>
+                </div>
+                
+                {/* Events container */}
+                <div className="relative z-10 pt-8 md:pt-16">
+                  {group.items.map((event, eventIndex) => {
+                    // Alternate left/right for each event using global index across all years
+                    const globalIndex = groupedEvents.slice(0, groupIndex).reduce((acc, g) => acc + g.items.length, 0) + eventIndex
+                    const isLeft = globalIndex % 2 === 0
+                    const isLastInGroup = eventIndex === group.items.length - 1
+                    return (
+                      <div key={event.id} className="relative">
+                        {renderEventCard(event, globalIndex, isLeft)}
+                        {/* Add prompt between events - Desktop */}
+                        {canEdit && !isLastInGroup && (
+                          <>
+                            <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-full mt-6 mb-6 justify-center z-20">
+                              <button
+                                onClick={() => {
+                                  resetForm()
+                                  setIsModalOpen(true)
+                                }}
+                                className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-blue-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110"
+                                aria-label="Add memory"
+                              >
+                                <Plus className="h-5 w-5 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                              </button>
+                            </div>
+                            {/* Mobile add prompt */}
+                            <div className="md:hidden flex justify-center mt-6 mb-6">
+                              <button
+                                onClick={() => {
+                                  resetForm()
+                                  setIsModalOpen(true)
+                                }}
+                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-blue-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all duration-200"
+                                aria-label="Add memory"
+                              >
+                                <Plus className="h-5 w-5 text-blue-600" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {/* Add prompt at end of year group */}
+                  {canEdit && group.items.length > 0 && (
+                    <>
+                      <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-full mt-8 justify-center z-20">
+                        <button
+                          onClick={() => {
+                            resetForm()
+                            setIsModalOpen(true)
+                          }}
+                          className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
+                          aria-label="Add memory"
+                        >
+                          <Plus className="h-6 w-6 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                        </button>
+                      </div>
+                      {/* Mobile add prompt at end of year */}
+                      <div className="md:hidden flex justify-center mt-8 mb-4">
+                        <button
+                          onClick={() => {
+                            resetForm()
+                            setIsModalOpen(true)
+                          }}
+                          className="flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200"
+                          aria-label="Add memory"
+                        >
+                          <Plus className="h-6 w-6 text-blue-600" />
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
+            ))}
+          </div>
+        )}
+        
+        {filteredAndPaginatedEvents.hasMore && (
+          <div className="text-center pt-8">
+            <Button 
+              onClick={handleLoadMore}
+              variant="ghost"
+              className="text-blue-600 hover:text-blue-700"
+            >
+              Load more ({filteredAndPaginatedEvents.totalFiltered - itemsToShow} remaining)
+            </Button>
+          </div>
+        )}
 
-              {/* Category Filter */}
-              <Select value={categoryFilter} onValueChange={handleCategoryFilter}>
-                <SelectTrigger className="w-48">
-                  <SelectValue placeholder="Filter by category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  {Object.entries(categoryConfig).map(([key, config]) => (
-                    <SelectItem key={key} value={key}>
-                      {config.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {/* Add prompt at end of timeline */}
+        {canEdit && hasVisibleEvents && (
+          <div className="relative mt-12 md:mt-16">
+            <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-0 justify-center z-20">
+              <button
+                onClick={() => {
+                  resetForm()
+                  setIsModalOpen(true)
+                }}
+                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border-2 border-blue-500 hover:border-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
+                aria-label="Add another memory"
+              >
+                <Plus className="h-7 w-7 text-blue-600 group-hover:text-blue-700 transition-colors" />
+              </button>
+            </div>
+            {/* Mobile add button */}
+            <div className="md:hidden flex justify-center pt-8">
+              <button
+                onClick={() => {
+                  resetForm()
+                  setIsModalOpen(true)
+                }}
+                className="flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200"
+                aria-label="Add another memory"
+              >
+                <Plus className="h-6 w-6 text-blue-600" />
+              </button>
+            </div>
+          </div>
+        )}
 
-              {/* Year Filter */}
-              {availableYears.length > 0 && (
-                <Select value={yearFilter} onValueChange={handleYearFilter}>
-                  <SelectTrigger className="w-32">
-                    <SelectValue placeholder="Year" />
+      </div>
+
+      {/* Add Event Modal */}
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
+          <DialogHeader className="pb-6">
+            <DialogTitle className="font-serif text-3xl font-semibold text-slate-900">
+              {editingEvent ? "Edit Memory" : "Add a Memory"}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-8">
+            {/* Title Field */}
+            <div className="space-y-3">
+              <Label htmlFor="title" className="text-base font-semibold text-slate-900">
+                What happened?
+              </Label>
+              <Input
+                id="title"
+                value={form.title}
+                onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="e.g., Graduated from University"
+                className="h-12 text-base"
+              />
+            </div>
+            
+            {/* Date and Category */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="date" className="text-base font-semibold text-slate-900">
+                  When did this happen? <span className="text-red-600">*</span>
+                </Label>
+                <Input
+                  id="date"
+                  type="month"
+                  value={form.date}
+                  onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
+                  placeholder="YYYY-MM"
+                  className="h-12 text-base"
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <Label htmlFor="category" className="text-base font-semibold text-slate-900">
+                  Type of memory
+                </Label>
+                <Select 
+                  value={form.category} 
+                  onValueChange={(value: TimelineCategory) => setForm(prev => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger className="h-12 text-base">
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Years</SelectItem>
-                    {availableYears.map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
+                    {Object.entries(categoryConfig).map(([key, config]) => (
+                      <SelectItem key={key} value={key} className="text-base py-3">
+                        {config.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              )}
+              </div>
+            </div>
+            
+            {/* Description */}
+            <div className="space-y-3">
+              <Label htmlFor="description" className="text-base font-semibold text-slate-900">
+                Tell us about this memory <span className="text-slate-500 font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                id="description"
+                value={form.description}
+                onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Share the story of this special moment..."
+                rows={5}
+                className="text-base resize-none"
+              />
+            </div>
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center gap-1 border rounded-md">
+            {/* Media Selection */}
+            <div className="space-y-4 border-t border-slate-200 pt-6">
+              <Label className="text-base font-semibold text-slate-900">
+                Add a photo or video <span className="text-slate-500 font-normal">(optional)</span>
+              </Label>
+              
+              {/* Media Mode Selection - Simplified */}
+              <div className="flex flex-wrap gap-3">
                 <Button
-                  variant={viewMode === "full" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("full")}
-                  className="rounded-r-none"
+                  type="button"
+                  variant={mediaUploadMode === "select" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => setMediaUploadMode("select")}
+                  className="h-12 px-6 text-base"
                 >
-                  <List className="h-4 w-4" />
+                  <ImageIcon className="h-5 w-5 mr-2" />
+                  Choose existing
                 </Button>
                 <Button
-                  variant={viewMode === "compact" ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => setViewMode("compact")}
-                  className="rounded-l-none"
+                  type="button"
+                  variant={mediaUploadMode === "upload" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => setMediaUploadMode("upload")}
+                  className="h-12 px-6 text-base"
                 >
-                  <Grid className="h-4 w-4" />
+                  <Upload className="h-5 w-5 mr-2" />
+                  Upload new
+                </Button>
+                <Button
+                  type="button"
+                  variant={mediaUploadMode === "youtube" ? "default" : "outline"}
+                  size="lg"
+                  onClick={() => setMediaUploadMode("youtube")}
+                  className="h-12 px-6 text-base"
+                >
+                  <Link className="h-5 w-5 mr-2" />
+                  YouTube link
                 </Button>
               </div>
 
-              {/* Clear Filters */}
-              {(searchQuery || categoryFilter !== "all" || yearFilter !== "all") && (
-                <Button variant="outline" size="sm" onClick={handleClearFilters}>
-                  <X className="h-4 w-4 mr-2" />
-                  Clear
-                </Button>
-              )}
-            </div>
-
-            {/* Quick Year Navigation */}
-            {availableYears.length > 0 && (
-              <div className="border-t pt-3">
-                <div className="text-xs text-slate-500 mb-2">Quick jump to decade:</div>
-                <div className="flex flex-wrap gap-1">
-                  {Array.from(new Set(availableYears.map(year => Math.floor(year / 10) * 10))).map(decade => (
-                    <Button
-                      key={decade}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        // Find first year in this decade that has events
-                        const yearInDecade = availableYears.find(year => Math.floor(year / 10) * 10 === decade)
-                        if (yearInDecade) {
-                          handleYearFilter(yearInDecade.toString())
-                        }
-                      }}
-                      className="text-xs px-2 py-1 h-6"
-                    >
-                      {decade}s
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Results Summary */}
-            <div className="text-sm text-slate-600">
-              {filteredAndPaginatedEvents.totalFiltered !== filteredAndPaginatedEvents.totalUnfiltered ? (
-                <span>
-                  Showing {Math.min(itemsToShow, filteredAndPaginatedEvents.totalFiltered)} of {filteredAndPaginatedEvents.totalFiltered} filtered events 
-                  ({filteredAndPaginatedEvents.totalUnfiltered} total)
-                </span>
-              ) : (
-                <span>
-                  Showing {Math.min(itemsToShow, filteredAndPaginatedEvents.totalFiltered)} of {filteredAndPaginatedEvents.totalFiltered} events
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-      </CardHeader>
-      
-      <CardContent className="p-8">
-        <div className="space-y-6">
-          <div className="text-center mb-8">
-            <h3 className="font-serif text-xl text-slate-800 mb-2">Life Timeline</h3>
-            <p className="text-slate-600">Click on any life stage to add events, or create custom events.</p>
-          </div>
-          
-          {/* Combined Timeline - Chronologically ordered events and template stages */}
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-slate-200"></div>
-
-            <div className="space-y-6">
-              {(() => {
-                // Create a combined list of events and template stages, sorted chronologically
-                const items = []
-                
-                // Add filtered events instead of all events
-                filteredAndPaginatedEvents.events.forEach(event => {
-                  items.push({
-                    type: 'event',
-                    data: event,
-                    sortDate: event.event_date ? new Date(event.event_date).getTime() : Date.now()
-                  })
-                })
-                
-                // Add template stages that don't have matching events
-                timelineStages.forEach(stage => {
-                  const hasMatchingEvent = events.some(event => 
-                    event.category === stage.category && 
-                    (event.title.toLowerCase().includes(stage.title.toLowerCase().split(' ')[0]) ||
-                     stage.title.toLowerCase().includes(event.title.toLowerCase().split(' ')[0]))
-                  )
-                  
-                  if (!hasMatchingEvent) {
-                    // For template stages without events, use a default sort position based on typical life stage timing
-                    const stageSortDates = {
-                      'Early Life': new Date('1950-01-01').getTime(),
-                      'Education': new Date('1970-01-01').getTime(),
-                      'Career': new Date('1990-01-01').getTime(),
-                      'Family Life': new Date('1995-01-01').getTime(),
-                      'Achievements': new Date('2000-01-01').getTime(),
-                      'Retirement': new Date('2015-01-01').getTime(),
-                      'Later Years': new Date('2020-01-01').getTime()
-                    }
-                    
-                    items.push({
-                      type: 'template',
-                      data: stage,
-                      sortDate: stageSortDates[stage.title] || Date.now()
-                    })
-                  }
-                })
-                
-                // Sort all items chronologically
-                return items.sort((a, b) => a.sortDate - b.sortDate).map((item, index) => {
-                  if (item.type === 'event') {
-                    const event = item.data as TimelineEvent
-                    const config = getCategoryConfig(event.category)
-                    const Icon = config.icon
-                    
-                    if (viewMode === 'compact') {
-                      // Compact view rendering
-                      return (
-                        <div key={event.id} className="relative flex items-center space-x-4 py-2">
-                          {/* Small timeline dot */}
-                          <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full border-2 border-white shadow-sm ${config.color}`}>
-                            <Icon className="h-3 w-3 text-white" />
-                          </div>
-
-                          {/* Compact event content */}
-                          <div className="flex-1 min-w-0">
-                            <div className="bg-white rounded-md p-3 shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                              <div className="flex items-center justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <h4 className="font-serif text-sm font-semibold text-slate-900 truncate">
-                                    {event.title}
-                                  </h4>
-                                  <div className="flex items-center space-x-3 text-xs text-slate-600 mt-1">
-                                    <span>{formatEventDate(event.event_date)}</span>
-                                    <Badge variant="outline" className={`text-xs ${config.bgColor} ${config.textColor} ${config.borderColor}`}>
-                                      {config.label}
-                                    </Badge>
-                                  </div>
-                                </div>
-                                {canEdit && (
-                                  <div className="flex gap-1 ml-2">
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleEditEvent(event)}
-                                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                    >
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => handleDeleteEvent(event.id)}
-                                      className="h-6 w-6 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    }
-                    
-                    // Full view rendering (existing)
-                    return (
-                    <div key={event.id} className="relative flex items-start space-x-6">
-                      {/* Timeline dot */}
-                      <div className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-lg ${config.color}`}>
-                        <Icon className="h-5 w-5 text-white" />
-                      </div>
-
-                      {/* Event content */}
-                      <div className="flex-1 min-w-0 pb-6">
-                        <div className="bg-white rounded-lg p-6 shadow-sm border border-slate-200 hover:shadow-md transition-shadow duration-200">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h3 className="font-serif text-lg font-semibold text-slate-900 mb-1">
-                                {event.title}
-                              </h3>
-                              <div className="flex items-center space-x-4 text-sm text-slate-600">
-                                <div className="flex items-center space-x-1">
-                                  <Calendar className="h-4 w-4" />
-                                  <span>{formatEventDate(event.event_date)}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <Badge variant="outline" className={`${config.bgColor} ${config.textColor} ${config.borderColor}`}>
-                              {config.label}
-                            </Badge>
-                          </div>
-
-                          {event.description && (
-                            <p className="text-slate-700 leading-relaxed mb-4">{event.description}</p>
-                          )}
-
-                          {/* Event media - only in full view */}
-                          <TimelineEventMedia
-                            eventId={event.id}
-                            eventTitle={event.title}
-                            eventDate={event.event_date}
-                            primaryMediaId={event.media_id}
-                            allMedia={media}
-                          />
-
-                          {/* Action buttons */}
-                          {canEdit && (
-                            <div className="flex justify-end gap-2 pt-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleEditEvent(event)}
-                                className="text-blue-600 hover:text-blue-700 hover:border-blue-300 hover:bg-blue-50"
-                              >
-                                <Edit className="h-4 w-4 mr-1" />
-                                Edit
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDeleteEvent(event.id)}
-                                className="text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+              {/* Select Existing Media */}
+              {mediaUploadMode === "select" && (
+                <div className="space-y-4">
+                  {media.length === 0 ? (
+                    <div className="rounded-lg border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center">
+                      <p className="text-base text-slate-600">
+                        No photos or videos available yet. Upload new to get started.
+                      </p>
                     </div>
-                    )
-                  } else {
-                    // Template stage without events
-                    const stage = item.data as any
-                    const config = getCategoryConfig(stage.category)
-                    const Icon = config.icon
-                    
-                    return (
-                      <div key={stage.title} className="relative flex items-start space-x-6">
-                        {/* Timeline dot */}
-                        <div className={`relative z-10 flex items-center justify-center w-12 h-12 rounded-full border-4 border-white shadow-lg ${config.color}`}>
-                          <Icon className="h-5 w-5 text-white" />
-                        </div>
-
-                        {/* Stage content */}
-                        <div className="flex-1 min-w-0 pb-6">
-                          <div 
-                            className="bg-gradient-to-br from-slate-50 to-white rounded-lg p-6 border border-dashed border-slate-300 hover:border-slate-400 hover:shadow-md transition-all duration-200 cursor-pointer group"
-                            onClick={() => canEdit && handleStageClick(stage)}
+                  ) : (
+                    <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
+                      {media.map((mediaItem) => {
+                        const isSelected = form.galleryMediaIds.includes(mediaItem.id)
+                        const isCover = form.selectedMediaId === mediaItem.id
+                        return (
+                          <div
+                            key={mediaItem.id}
+                            className={`flex items-center gap-4 rounded-lg border-2 px-4 py-3 ${isSelected ? "border-blue-500 bg-blue-50" : "border-slate-200 bg-white"}`}
                           >
-                            <div className="flex items-center justify-between mb-3">
-                              <div>
-                                <h3 className="font-serif text-lg font-semibold text-slate-800 group-hover:text-slate-900 transition-colors">
-                                  {stage.title}
-                                </h3>
-                                <p className="text-sm text-slate-600 group-hover:text-slate-700 mt-1 transition-colors">
-                                  {stage.description}
-                                </p>
-                              </div>
-                              <Badge variant="outline" className={`${config.bgColor} ${config.textColor} ${config.borderColor}`}>
-                                {config.label}
-                              </Badge>
+                            {mediaItem.file_type === "video" ? (
+                              <Video className="h-6 w-6 text-blue-700" aria-hidden />
+                            ) : mediaItem.file_type === "document" ? (
+                              <FileText className="h-6 w-6 text-slate-600" aria-hidden />
+                            ) : (
+                              <ImageIcon className="h-6 w-6 text-green-700" aria-hidden />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-base font-medium text-slate-900 truncate">
+                                {mediaItem.title || `${mediaItem.file_type} file`}
+                              </p>
+                              <p className="text-sm text-slate-500 truncate">
+                                {mediaItem.file_type === "video" ? "Video" : "Image"} · {mediaItem.created_at ? new Date(mediaItem.created_at).toLocaleDateString() : "Unknown date"}
+                              </p>
                             </div>
-                            
-                            {canEdit && (
-                              <div className="flex items-center justify-center py-4 text-slate-500 group-hover:text-slate-700 transition-colors">
-                                <div className="flex items-center space-x-2">
-                                  <Calendar className="h-4 w-4" />
-                                  <span className="text-sm font-medium">Click to add details</span>
-                                </div>
-                              </div>
+                            <Button
+                              size="lg"
+                              variant={isSelected ? "default" : "outline"}
+                              onClick={() => toggleGallerySelection(mediaItem.id)}
+                              className={`h-11 px-6 ${isSelected ? "bg-[#1B3B5F]" : ""}`}
+                            >
+                              {isSelected ? "Remove" : "Add"}
+                            </Button>
+                            {isSelected && (
+                              <Button
+                                size="lg"
+                                variant={isCover ? "default" : "outline"}
+                                aria-label="Set as cover"
+                                onClick={() => setCoverMedia(mediaItem.id)}
+                                className={`h-11 px-4 ${isCover ? "bg-[#1B3B5F] text-white" : ""}`}
+                              >
+                                {isCover ? "✓ Cover" : "Set cover"}
+                              </Button>
                             )}
                           </div>
-                        </div>
-                      </div>
-                    )
-                  }
-                })
-              })()}
-            </div>
-          </div>
-          
-          {/* Load More Button */}
-          {filteredAndPaginatedEvents.hasMore && (
-            <div className="text-center pt-6">
-              <Button 
-                onClick={handleLoadMore}
-                variant="outline"
-                className="text-slate-600 hover:text-slate-900"
-              >
-                <ChevronDown className="h-4 w-4 mr-2" />
-                Load More Events ({filteredAndPaginatedEvents.totalFiltered - itemsToShow} remaining)
-              </Button>
-            </div>
-          )}
-
-          {/* Add Custom Event Button */}
-          {canEdit && (
-            <div className="text-center pt-6">
-              <Button 
-                onClick={() => setIsModalOpen(true)} 
-                variant="outline" 
-                className="text-slate-600 hover:text-slate-900"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Custom Event
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-
-      {/* Add Event Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-serif text-xl font-semibold">
-              {editingEvent ? "Edit Timeline Event" : selectedStage ? "Add Life Event" : "Add Timeline Event"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
-                <Input
-                  id="title"
-                  value={form.title}
-                  onChange={(e) => setForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="e.g., Graduated from University"
-                />
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="date">Date *</Label>
-                  <Input
-                    id="date"
-                    type="month"
-                    value={form.date}
-                    onChange={(e) => setForm(prev => ({ ...prev, date: e.target.value }))}
-                    placeholder="YYYY-MM"
-                  />
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="category">Category</Label>
-                  <Select 
-                    value={form.category} 
-                    onValueChange={(value: TimelineCategory) => setForm(prev => ({ ...prev, category: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(categoryConfig).map(([key, config]) => (
-                        <SelectItem key={key} value={key}>
-                          {config.label}
-                        </SelectItem>
+              )}
+
+              {/* Upload New Media */}
+              {mediaUploadMode === "upload" && (
+                <div className="space-y-4">
+                  {mediaPreviews.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {mediaPreviews.map((preview, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={preview}
+                            alt={`Preview ${idx + 1}`}
+                            className="w-full h-32 object-cover rounded-lg border-2 border-slate-200"
+                          />
+                        </div>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="description">Description (Optional)</Label>
-                <Textarea
-                  id="description"
-                  value={form.description}
-                  onChange={(e) => setForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Tell the story of this moment..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Media Selection */}
-              <div className="space-y-4">
-                <Label>Photo or Video (Optional)</Label>
-                
-                {/* Media Mode Selection */}
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant={mediaUploadMode === "select" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMediaUploadMode("select")}
-                    className="flex items-center gap-2"
-                  >
-                    <ImageIcon className="h-4 w-4" />
-                    Select Existing
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mediaUploadMode === "upload" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMediaUploadMode("upload")}
-                    className="flex items-center gap-2"
-                  >
-                    <Upload className="h-4 w-4" />
-                    Upload New
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mediaUploadMode === "youtube" ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setMediaUploadMode("youtube")}
-                    className="flex items-center gap-2"
-                  >
-                    <Link className="h-4 w-4" />
-                    YouTube URL
-                  </Button>
-                </div>
-
-                {/* Select Existing Media */}
-                {mediaUploadMode === "select" && (
-                  <Select 
-                    value={form.selectedMediaId || "none"} 
-                    onValueChange={(value) => setForm(prev => ({ ...prev, selectedMediaId: value === "none" ? "" : value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select existing media" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">
-                        <div className="flex items-center gap-2">
-                          <X className="h-4 w-4" />
-                          No media
-                        </div>
-                      </SelectItem>
-                      {media.length > 0 ? (
-                        media.map((mediaItem) => (
-                          <SelectItem key={mediaItem.id} value={mediaItem.id}>
-                            <div className="flex items-center gap-2">
-                              {mediaItem.file_type === "video" ? (
-                                <Video className="h-4 w-4 text-blue-600" />
-                              ) : mediaItem.file_type === "document" ? (
-                                <FileText className="h-4 w-4 text-gray-600" />
-                              ) : (
-                                <ImageIcon className="h-4 w-4 text-green-600" />
-                              )}
-                              {mediaItem.title || `${mediaItem.file_type} file`}
-                            </div>
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-media-available" disabled>
-                          <div className="flex items-center gap-2">
-                            <X className="h-4 w-4" />
-                            No media available
-                          </div>
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                )}
-
-                {/* Upload New Media */}
-                {mediaUploadMode === "upload" && (
-                  <div className="space-y-3">
-                    {mediaPreview ? (
-                      <div className="relative">
-                        <img
-                          src={mediaPreview}
-                          alt="Preview"
-                          className="w-full h-32 object-cover rounded-lg border border-slate-200"
-                        />
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          className="absolute top-2 right-2"
-                          onClick={() => {
-                            setMediaFile(null)
-                            setMediaPreview("")
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : mediaFile ? (
-                      <div className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border">
-                        <Video className="h-5 w-5 text-blue-600" />
-                        <span className="text-sm font-medium">{mediaFile.name}</span>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setMediaFile(null)
-                            setMediaPreview("")
-                          }}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center">
-                        <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                        <p className="text-sm text-slate-600 mb-2">Upload a photo or video</p>
-                        <Input
-                          type="file"
-                          accept="image/*,video/*"
-                          onChange={handleMediaFileSelect}
-                          className="max-w-xs mx-auto"
-                        />
-                        <p className="text-xs text-slate-500 mt-2">
-                          Images up to 10MB, videos up to 500MB
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* YouTube URL */}
-                {mediaUploadMode === "youtube" && (
-                  <div className="space-y-2">
+                    </div>
+                  )}
+                  {mediaFiles.length > 0 && (
+                    <div className="flex items-center justify-between rounded-lg border-2 border-slate-200 bg-slate-50 px-4 py-3">
+                      <span className="text-base text-slate-700 font-medium">
+                        {mediaFiles.length} file{mediaFiles.length === 1 ? "" : "s"} selected
+                      </span>
+                      <Button
+                        type="button"
+                        size="lg"
+                        variant="outline"
+                        onClick={() => {
+                          setMediaFiles([])
+                          setMediaPreviews([])
+                        }}
+                        className="h-10"
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  )}
+                  <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center bg-slate-50">
+                    <Upload className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                    <p className="text-base text-slate-700 mb-4 font-medium">Upload photos or videos</p>
                     <Input
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      value={youtubeUrl}
-                      onChange={(e) => setYoutubeUrl(e.target.value)}
-                      type="url"
+                      type="file"
+                      accept="image/*,video/*"
+                      multiple
+                      onChange={handleMediaFileSelect}
+                      className="max-w-md mx-auto h-12 text-base"
                     />
-                    {youtubeUrl && !isYouTubeUrl(youtubeUrl) && (
-                      <p className="text-sm text-red-600">Please enter a valid YouTube URL</p>
-                    )}
-                    <p className="text-xs text-slate-500">
-                      Paste a YouTube video URL. We recommend setting your video as "Unlisted" for privacy.
+                    <p className="text-sm text-slate-600 mt-4">
+                      Images up to 10MB each, videos up to 500MB each
                     </p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+
+              {/* YouTube URL */}
+              {mediaUploadMode === "youtube" && (
+                <div className="space-y-3">
+                  <Input
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={youtubeUrl}
+                    onChange={(e) => setYoutubeUrl(e.target.value)}
+                    type="url"
+                    className="h-12 text-base"
+                  />
+                  {youtubeUrl && !isYouTubeUrl(youtubeUrl) && (
+                    <p className="text-base text-red-600">Please enter a valid YouTube URL</p>
+                  )}
+                  <p className="text-sm text-slate-600">
+                    Paste a YouTube video URL. We recommend setting your video as "Unlisted" for privacy.
+                  </p>
+                </div>
+              )}
             </div>
 
-            <div className="flex justify-end gap-2 pt-4">
+            {/* Action Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1211,24 +1286,28 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                   setIsModalOpen(false)
                 }}
                 disabled={isSubmitting}
+                size="lg"
+                className="h-12 px-8 text-base"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !form.title.trim() || !form.date || !form.date.trim()}
+                size="lg"
+                className="h-12 px-8 text-base bg-[#1B3B5F] hover:bg-[#1B3B5F]/90"
               >
                 {isSubmitting 
                   ? uploadingMedia 
-                    ? "Uploading media..." 
-                    : (editingEvent ? "Updating..." : "Adding...")
-                  : (editingEvent ? "Update Event" : "Add Event")
+                    ? "Uploading..." 
+                    : (editingEvent ? "Saving..." : "Adding...")
+                  : (editingEvent ? "Save Changes" : "Add Memory")
                 }
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-    </Card>
+          </DialogContent>
+        </Dialog>
+    </div>
   )
 }

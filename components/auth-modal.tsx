@@ -26,8 +26,13 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
     email: "",
     password: "",
     confirmPassword: "",
+    resetToken: "",
+    newPassword: "",
+    confirmNewPassword: "",
   })
   const [error, setError] = useState("")
+  const [info, setInfo] = useState("")
+  const [resetStep, setResetStep] = useState<"none" | "request" | "confirm">("none")
 
   const { login, isLoading } = useAuth()
   const router = useRouter()
@@ -35,6 +40,49 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
+    setInfo("")
+
+    if (resetStep === "request") {
+      const res = await fetch("/api/auth/password/reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data?.error || "Unable to start reset.")
+        return
+      }
+      setInfo(
+        data?.token
+          ? `Reset started. Use this token to finish: ${data.token}`
+          : "Reset started. Check your email for instructions.",
+      )
+      setResetStep("confirm")
+      return
+    }
+
+    if (resetStep === "confirm") {
+      if (formData.newPassword !== formData.confirmNewPassword) {
+        setError("Passwords do not match.")
+        return
+      }
+      const res = await fetch("/api/auth/password/reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: formData.resetToken, newPassword: formData.newPassword }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data?.error || "Unable to reset password.")
+        return
+      }
+      setInfo("Password updated. You can now sign in.")
+      setResetStep("none")
+      setCurrentMode("signin")
+      setFormData((prev) => ({ ...prev, password: "", confirmPassword: "", newPassword: "", confirmNewPassword: "", resetToken: "" }))
+      return
+    }
 
     if (currentMode === "signup" && formData.password !== formData.confirmPassword) {
       setError("Passwords don't match")
@@ -42,17 +90,19 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
     }
 
     try {
-      const success = await login(
+      const { ok, error: loginError } = await login(
         formData.email,
         formData.password,
         currentMode === "signup" ? formData.name : undefined,
       )
 
-      if (success) {
-        setIsOpen(false)
-        // Redirect: sign in → My memorials, sign up → Create memorial
-        router.push(currentMode === "signin" ? "/memorial" : "/create")
+      if (!ok) {
+        setError(loginError || "Authentication failed. Please try again.")
+        return
       }
+      setIsOpen(false)
+      // Redirect: sign in → My memorials, sign up → Create memorial
+      router.push(currentMode === "signin" ? "/memorial" : "/create")
     } catch (err) {
       setError("Authentication failed. Please try again.")
     }
@@ -61,6 +111,7 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
     setError("") // Clear error when user types
+    setInfo("")
   }
 
   const handleQuickLogin = async () => {
@@ -94,12 +145,22 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
               <Heart className="h-8 w-8 text-[#4A90A4]" />
             </div>
             <CardTitle className="font-serif text-2xl text-[#1B3B5F]">
-              {currentMode === "signin" ? "Welcome Back" : "Create Your Account"}
+              {resetStep === "request"
+                ? "Forgotten your password?"
+                : resetStep === "confirm"
+                  ? "Enter your reset token"
+                  : currentMode === "signin"
+                    ? "Welcome Back"
+                    : "Create Your Account"}
             </CardTitle>
             <CardDescription className="text-slate-600">
-              {currentMode === "signin"
-                ? "Sign in to manage your memorial pages"
-                : "Start creating beautiful memorial pages for your loved ones"}
+              {resetStep === "request"
+                ? "Pop in your email and we’ll send a reset token."
+                : resetStep === "confirm"
+                  ? "Paste the token and set a fresh password."
+                  : currentMode === "signin"
+                    ? "Sign in to manage your memorial pages"
+                    : "Start creating beautiful memorial pages for your loved ones"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -132,9 +193,14 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                 <p className="text-sm text-red-600">{error}</p>
               </div>
             )}
+            {info && (
+              <div className="mb-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                <p className="text-sm text-emerald-700">{info}</p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {currentMode === "signup" && (
+              {resetStep === "none" && currentMode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Full Name
@@ -170,7 +236,59 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                 </div>
               </div>
 
-              <div className="space-y-2">
+              {resetStep === "confirm" && (
+                <div className="space-y-2">
+                  <Label htmlFor="resetToken" className="text-sm font-medium">
+                    Reset token
+                  </Label>
+                  <Input
+                    id="resetToken"
+                    type="text"
+                    placeholder="Paste your reset token"
+                    value={formData.resetToken}
+                    onChange={(e) => handleInputChange("resetToken", e.target.value)}
+                    className="border-2 focus:border-[#4A90A4] rounded-lg"
+                  />
+                </div>
+              )}
+
+              {resetStep === "confirm" ? (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword" className="text-sm font-medium">
+                      New password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="newPassword"
+                        type="password"
+                        placeholder="Enter a new password"
+                        value={formData.newPassword}
+                        onChange={(e) => handleInputChange("newPassword", e.target.value)}
+                        className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmNewPassword" className="text-sm font-medium">
+                      Confirm new password
+                    </Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                      <Input
+                        id="confirmNewPassword"
+                        type="password"
+                        placeholder="Confirm your new password"
+                        value={formData.confirmNewPassword}
+                        onChange={(e) => handleInputChange("confirmNewPassword", e.target.value)}
+                        className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-2">
                 <Label htmlFor="password" className="text-sm font-medium">
                   Password
                 </Label>
@@ -185,9 +303,10 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                       className="pl-10 border-2 focus:border-[#4A90A4] rounded-lg"
                     />
                 </div>
-              </div>
+                </div>
+              )}
 
-              {currentMode === "signup" && (
+              {resetStep === "none" && currentMode === "signup" && (
                 <div className="space-y-2">
                   <Label htmlFor="confirmPassword" className="text-sm font-medium">
                     Confirm Password
@@ -213,18 +332,55 @@ export default function AuthModal({ mode, variant = "outline", children }: AuthM
                 disabled={isLoading}
               >
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                {currentMode === "signin" ? "Sign In" : "Create Account"}
+                {resetStep === "request"
+                  ? "Send reset token"
+                  : resetStep === "confirm"
+                    ? "Update password"
+                    : currentMode === "signin"
+                      ? "Sign In"
+                      : "Create Account"}
               </Button>
             </form>
 
             <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => setCurrentMode(currentMode === "signin" ? "signup" : "signin")}
-                className="text-sm text-[#4A90A4] hover:text-[#3a7a8a] transition-colors"
-              >
-                {currentMode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-              </button>
+              {resetStep === "none" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentMode(currentMode === "signin" ? "signup" : "signin")}
+                    className="text-sm text-[#4A90A4] hover:text-[#3a7a8a] transition-colors"
+                  >
+                    {currentMode === "signin" ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                  </button>
+                  {currentMode === "signin" && (
+                    <div className="mt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setResetStep("request")
+                          setError("")
+                          setInfo("")
+                        }}
+                        className="text-xs text-[#1B3B5F] underline"
+                      >
+                        Forgotten your password?
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setResetStep("none")
+                    setError("")
+                    setInfo("")
+                  }}
+                  className="text-sm text-[#4A90A4] hover:text-[#3a7a8a] transition-colors"
+                >
+                  Back to sign in
+                </button>
+              )}
             </div>
           </CardContent>
         </Card>

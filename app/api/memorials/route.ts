@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       cover_image_url = null,
       is_alive = false,
       burial_location = null,
+      is_public = true,
     } = body || {}
 
     if (!full_name || !title) {
@@ -59,7 +60,8 @@ export async function POST(request: NextRequest) {
         profile_image_url,
         cover_image_url,
         is_alive,
-        burial_location
+        burial_location,
+        is_public: Boolean(is_public)
       })
       .select('id, slug')
       .single()
@@ -98,6 +100,8 @@ export async function GET(request: NextRequest) {
     const limitParam = searchParams.get("limit")
     const limit = Math.min(Number(limitParam || "50"), 100)
     const myMemorialsOnly = searchParams.get("my_memorials") === "true"
+    const rawSearch = searchParams.get("search") || searchParams.get("q") || ""
+    const searchTerm = rawSearch.trim().toLowerCase()
 
     if (myMemorialsOnly) {
       // For "my memorials" - require authentication and only return user's memorials
@@ -121,7 +125,7 @@ export async function GET(request: NextRequest) {
             email
           )
         `)
-        .or(`created_by.eq.${user.id}`)
+        .eq('created_by', user.id)
         .order('created_at', { ascending: false })
         .limit(limit)
 
@@ -130,17 +134,34 @@ export async function GET(request: NextRequest) {
         return NextResponse.json([])
       }
 
-      const result = memorials?.map(memorial => ({
+      const filtered = (memorials || []).filter((memorial) => {
+        if (!searchTerm) return true
+        const haystack = [
+          memorial.full_name,
+          memorial.title,
+          memorial.biography,
+          memorial.burial_location,
+          memorial.slug,
+        ]
+          .map((v) => String(v || "").toLowerCase())
+          .join(" ")
+        return haystack.includes(searchTerm)
+      })
+
+      const result = filtered.map(memorial => ({
         ...memorial,
         creator_name: memorial.users?.name || '',
         creator_email: memorial.users?.email || '',
         users: undefined // Remove the nested users object
-      })) || []
+      }))
 
       return NextResponse.json(result)
     } else {
       // Public memorial listing
-      const { data: memorials, error } = await supabase
+      const user = await getAuthenticatedUser(request)
+
+      // Fetch accessible memorials: public for everyone, plus owned ones if logged in
+      let publicQuery = supabase
         .from('memorials')
         .select(`
           *,
@@ -149,8 +170,15 @@ export async function GET(request: NextRequest) {
             email
           )
         `)
-        .eq('is_public', true)
         .eq('status', 'active')
+
+      if (user) {
+        publicQuery = publicQuery.or(`is_public.eq.true,created_by.eq.${user.id}`)
+      } else {
+        publicQuery = publicQuery.eq('is_public', true)
+      }
+
+      const { data: memorials, error } = await publicQuery
         .order('created_at', { ascending: false })
         .limit(limit)
 
@@ -159,14 +187,30 @@ export async function GET(request: NextRequest) {
         return NextResponse.json([])
       }
 
-      const result = memorials?.map(memorial => ({
+      const filtered = (memorials || []).filter((memorial) => {
+        if (!searchTerm) return true
+        const haystack = [
+          memorial.full_name,
+          memorial.title,
+          memorial.biography,
+          memorial.burial_location,
+          memorial.slug,
+        ]
+          .map((v) => String(v || "").toLowerCase())
+          .join(" ")
+        return haystack.includes(searchTerm)
+      })
+
+      const result = filtered.map(memorial => ({
         ...memorial,
         creator_name: memorial.users?.name || '',
         creator_email: memorial.users?.email || '',
         users: undefined // Remove the nested users object
-      })) || []
+      }))
 
-      return NextResponse.json(result)
+      const response = NextResponse.json(result)
+      response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=900")
+      return response
     }
   } catch (err) {
     console.error("List memorials error:", err)

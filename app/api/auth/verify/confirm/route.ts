@@ -1,19 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { supabase } from "@/lib/database"
 import { markUserVerifiedByEmail } from "@/lib/auth"
-
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
-  }
-  throw new Error("DATABASE_URL is not set")
-}
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,37 +10,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Token required" }, { status: 400 })
     }
 
-    const sql = getSql()
-    const rows = await sql`
-      SELECT * FROM email_verifications
-      WHERE token = ${token}
-      LIMIT 1
-    `
+    const { data: record, error } = await supabase
+      .from("email_verifications")
+      .select("*")
+      .eq("token", token)
+      .maybeSingle()
 
-    const row = rows[0] as any
-    if (!row) {
+    if (error || !record) {
       return NextResponse.json({ ok: false, reason: "invalid" }, { status: 400 })
     }
-    if (row.verified) {
+    if (record.verified) {
       return NextResponse.json({ ok: true, already: true })
     }
-    const now = new Date()
-    const expiresAt = new Date(row.expires_at)
-    if (now > expiresAt) {
+
+    const expiresAt = new Date(record.expires_at)
+    if (Number.isNaN(expiresAt.getTime()) || new Date() > expiresAt) {
       return NextResponse.json({ ok: false, reason: "expired" }, { status: 400 })
     }
 
-    await sql`
-      UPDATE email_verifications
-      SET verified = TRUE, verified_at = NOW()
-      WHERE token = ${token}
-    `
+    const { error: updateError } = await supabase
+      .from("email_verifications")
+      .update({ verified: true, verified_at: new Date().toISOString() })
+      .eq("token", token)
+
+    if (updateError) {
+      console.error("Failed to mark verification as used", updateError)
+      return NextResponse.json({ error: "Failed to verify" }, { status: 500 })
+    }
 
     try {
-      await markUserVerifiedByEmail(row.email)
-    } catch {}
+      await markUserVerifiedByEmail(record.email)
+    } catch (err) {
+      console.error("Failed to flag user as verified", err)
+    }
 
-    return NextResponse.json({ ok: true, email: row.email })
+    return NextResponse.json({ ok: true, email: record.email })
   } catch (error) {
     console.error("confirm verification error", error)
     return NextResponse.json({ error: "Failed to verify" }, { status: 500 })

@@ -361,18 +361,16 @@ export default function MemorialClient({ id }: { id: string }) {
             {/* Timeline Section */}
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 font-serif">
-                    <Clock className="h-5 w-5 text-rose-600" />
-                    Life Timeline
-                  </CardTitle>
+                <CardTitle className="flex items-center gap-2 font-serif">
+                  <Clock className="h-5 w-5 text-rose-600" />
+                  Life Timeline
                   <PermissionGuard permissions={userPermissions} requiredPermission="edit">
-                    <Button onClick={() => setIsAddOpen(true)} size="sm">
+                    <Button onClick={() => setIsAddOpen(true)} size="sm" variant="outline">
                       <Plus className="h-4 w-4 mr-2" />
                       Add Event
                     </Button>
                   </PermissionGuard>
-                </div>
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {timeline && (

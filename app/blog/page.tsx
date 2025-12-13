@@ -1,4 +1,11 @@
 import Link from "next/link"
+import { buildMetadata } from "@/lib/seo"
+
+export const metadata = buildMetadata({
+  title: "Blog",
+  description: "Updates, guidance, and stories from Sandalwood Memories. Calm, readable posts to help you share memories well.",
+  path: "/blog",
+})
 
 export default function BlogPage() {
   const categories = [

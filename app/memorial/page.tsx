@@ -1,14 +1,14 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Heart, Calendar, Eye, Search, Trash2, MoreVertical, Crown, Plus, Zap } from "lucide-react"
+import { Heart, Calendar, Eye, Search, Trash2, MoreVertical, Crown, Plus, Zap, Lock, BookOpen, Shield, Sparkles } from "lucide-react"
 import { useAuth } from "@/contexts/auth-context"
-import { UserNav } from "@/components/user-nav"
 import UsageLimitModal from "@/components/usage-limit-modal"
 import { 
   AlertDialog, 
@@ -168,118 +168,219 @@ export default function MemorialListPage() {
   // Show authentication prompt for non-logged in users
   if (!authLoading && !user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center mb-4">
-              <Heart className="h-6 w-6 text-rose-600" />
+      <div className="relative min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-100 text-slate-900">
+        <div
+          className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_15%_18%,rgba(15,60,93,0.08),transparent_35%),radial-gradient(circle_at_80%_10%,rgba(244,114,182,0.1),transparent_32%),radial-gradient(circle_at_55%_70%,rgba(14,165,233,0.08),transparent_30%)]"
+          aria-hidden
+        />
+        <div className="relative mx-auto max-w-6xl px-6 py-16 lg:py-20">
+          <div className="grid gap-12 lg:grid-cols-[1.05fr,0.95fr] lg:items-center">
+            <div className="space-y-8">
+              <div className="inline-flex items-center gap-2 rounded-full bg-[#0f3c5d]/5 px-3 py-1 text-sm font-semibold text-[#0f3c5d] ring-1 ring-[#0f3c5d]/15">
+                <Shield className="h-4 w-4 text-[#0f3c5d]" aria-hidden />
+                <span>Private by invitation</span>
+              </div>
+
+              <div className="space-y-4">
+                <h1 className="text-3xl font-semibold leading-tight text-slate-900 sm:text-4xl">
+                  A calm space for every memory.
+                </h1>
+                <p className="max-w-2xl text-base text-slate-700 sm:text-lg">
+                  Sign in to see the memorials you care for. We keep every page organised, private, and easy to read with accessible colours.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <Link href="/auth?mode=signin">
+                  <Button className="bg-[#0f3c5d] text-white shadow-md hover:bg-[#0c304c]">
+                    Sign in securely
+                  </Button>
+                </Link>
+                <Link href="/auth?mode=signup">
+                  <Button
+                    variant="outline"
+                    className="border-[#0f3c5d]/30 text-[#0f3c5d] hover:border-[#0f3c5d]/50 hover:bg-[#0f3c5d]/5"
+                  >
+                    Create a memorial space
+                  </Button>
+                </Link>
+                <Link href="/">
+                  <Button variant="ghost" className="text-slate-700 hover:bg-slate-100">
+                    Return home
+                  </Button>
+                </Link>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex items-start gap-3 rounded-xl bg-white/70 p-4 ring-1 ring-slate-200">
+                  <Lock className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">Invite-only privacy</p>
+                    <p className="text-sm text-slate-700">
+                      Each memorial is visible only to the people you choose.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-white/70 p-4 ring-1 ring-slate-200">
+                  <BookOpen className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">Organised stories</p>
+                    <p className="text-sm text-slate-700">
+                      Timelines, tributes, and photos stay tidy and easy to follow.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3 rounded-xl bg-white/70 p-4 ring-1 ring-slate-200 sm:col-span-2">
+                  <Sparkles className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                  <div className="space-y-1">
+                    <p className="font-medium text-slate-900">Gentle, accessible palette</p>
+                    <p className="text-sm text-slate-700">
+                      High-contrast colours and calm typography for late-night reading.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
-            <CardTitle>Sign in required</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center space-y-4">
-            <p className="text-muted-foreground">
-              Please sign in to view your memorials.
-            </p>
-            <div className="flex flex-col gap-2">
-              <Link href="/">
-                <Button className="w-full">Go to homepage</Button>
-              </Link>
-              <p className="text-sm text-muted-foreground">
-                You can sign in from the homepage
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+
+            <Card className="relative border border-slate-200 bg-white/90 text-slate-900 shadow-2xl backdrop-blur">
+              <CardHeader className="space-y-2 pb-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#0f3c5d]">Preview</p>
+                <CardTitle className="text-2xl font-semibold text-slate-900">See what you are coming back to</CardTitle>
+                <p className="text-sm text-slate-600">
+                  A secure view of your memorial pages, without adverts or noise.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <div className="relative overflow-hidden rounded-xl ring-1 ring-slate-200">
+                  <div className="relative h-52 w-full">
+                    <Image
+                      src="/flower-bay.jpg"
+                      alt="Sample memorial backdrop with flowers"
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 50vw"
+                      priority
+                    />
+                    <div
+                      className="absolute inset-0 bg-gradient-to-t from-slate-900/75 via-slate-900/30 to-transparent"
+                      aria-hidden
+                    />
+                    <div className="absolute bottom-0 w-full space-y-1 p-4">
+                      <p className="text-sm text-slate-100/90">Private memorial</p>
+                      <p className="text-lg font-semibold text-white">Amelia Rhodes</p>
+                      <p className="text-sm text-slate-100/85">Always shared a laugh in the garden.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Calendar className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                    <div className="space-y-1">
+                      <p className="font-medium text-slate-900">Timeline stays intact</p>
+                      <p className="text-sm text-slate-700">
+                        Dates, tributes, and media stay ordered for every visit.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Heart className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                    <div className="space-y-1">
+                      <p className="font-medium text-slate-900">Respectful contributions</p>
+                      <p className="text-sm text-slate-700">
+                        Only invited guests can add stories or photos.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <Eye className="mt-1 h-5 w-5 text-[#0f3c5d]" aria-hidden />
+                    <div className="space-y-1">
+                      <p className="font-medium text-slate-900">No distractions</p>
+                      <p className="text-sm text-slate-700">
+                        Clean, readable layouts with contrast that works for everyone.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Link href="/auth?mode=signin" className="block">
+                  <Button className="w-full bg-[#0f3c5d] text-white hover:bg-[#0c304c]">
+                    Sign in to view memorials
+                  </Button>
+                </Link>
+                <p className="text-center text-xs text-slate-600">
+                  New here?{" "}
+                  <Link href="/create" className="font-semibold text-[#0f3c5d] underline-offset-4 hover:underline">
+                    Start a memorial space
+                  </Link>
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="border-b border-border/50 bg-white/80 backdrop-blur-sm sticky top-0 z-50" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/memorial" className="flex items-center gap-2" aria-label="Go to My memorials">
-              <Heart className="h-6 w-6 text-primary" aria-hidden />
-              <span className="font-serif font-bold text-xl text-foreground">Sandalwood Memories</span>
-            </Link>
-            <div className="flex items-center gap-3">
-              <Link href="/create" className="md:hidden">
-                <Button size="sm" className="bg-primary text-primary-foreground">Create</Button>
-              </Link>
-              <div className="hidden md:flex items-center gap-3">
-                <Link href="/create">
-                  <Button variant="outline" className="bg-transparent">Create memorial</Button>
-                </Link>
-                <UserNav />
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-      <div className="max-w-6xl mx-auto p-6">
-        <div className="mb-4">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-6 py-12 sm:px-8 lg:px-12">
+        {/* Header Section */}
+        <div className="mb-10">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
             <div>
-              <h1 className="text-2xl font-semibold">My memorials</h1>
-              {/* Always show usage info for logged in users */}
+              <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 mb-2">My Memorials</h1>
               {user && (
-                <div className="flex items-center gap-4 mt-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <span>
-                      {usageData?.usage?.memorialCount || memorials?.length || 0}/{usageData?.planType === "free" || !usageData ? "1" : "∞"} memorials
+                <p className="text-lg text-slate-600">
+                  {filteredMemorials.length === 0 
+                    ? "No memorials yet"
+                    : `${filteredMemorials.length} memorial${filteredMemorials.length === 1 ? "" : "s"}`}
+                  {usageData && (
+                    <span className="ml-2 text-base text-slate-500">
+                      ({usageData?.usage?.memorialCount || memorials?.length || 0}/{usageData?.planType === "free" || !usageData ? "1" : "∞"})
                     </span>
-                    {(!usageData || usageData.planType === "free") && (
-                      <Badge variant="secondary" className="text-xs">
-                        Free Plan
-                      </Badge>
-                    )}
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setShowUsageModal(true)}
-                    className="text-xs text-slate-500 hover:text-slate-700"
-                  >
-                    <Zap className="h-3 w-3 mr-1" />
-                    View Usage
-                  </Button>
-                </div>
+                  )}
+                </p>
               )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3">
+              {user && (
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowUsageModal(true)}
+                  className="text-base text-slate-600 hover:text-slate-900"
+                >
+                  <Zap className="h-4 w-4 mr-2" />
+                  Usage
+                </Button>
+              )}
               {user && (!usageData || usageData.planType === "free") && (usageData?.usage?.memorialCount || memorials?.length || 0) >= 1 ? (
-                <>
-                  <Button
-                    variant="outline"
-                    disabled
-                    className="text-slate-500 hidden md:flex"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Limit Reached
+                <Link href="/pricing">
+                  <Button className="bg-[#0f3c5d] hover:bg-[#0c304c] text-white h-11 px-6">
+                    <Crown className="h-4 w-4 mr-2" />
+                    Upgrade
                   </Button>
-                  <Link href="/pricing">
-                    <Button className="bg-amber-600 hover:bg-amber-700 text-white">
-                      <Crown className="h-4 w-4 mr-2" />
-                      <span className="hidden sm:inline">Upgrade</span>
-                    </Button>
-                  </Link>
-                </>
+                </Link>
               ) : (
-                <Link href="/create" className="text-sm text-rose-700 hover:underline md:hidden">
-                  Create new
+                <Link href="/create">
+                  <Button className="bg-[#0f3c5d] hover:bg-[#0c304c] text-white h-11 px-6">
+                    <Plus className="h-5 w-5 mr-2" />
+                    Create Memorial
+                  </Button>
                 </Link>
               )}
             </div>
           </div>
-          <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <div className="w-full md:max-w-sm relative">
-              <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" aria-hidden />
+
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1 max-w-md">
+              <Search className="h-5 w-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" aria-hidden />
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search memorials"
-                className="pl-9"
+                placeholder="Search memorials..."
+                className="pl-12 h-12 text-base border-slate-200"
                 aria-label="Search memorials"
               />
             </div>
@@ -289,133 +390,254 @@ export default function MemorialListPage() {
                   key={s}
                   type="button"
                   variant={statusFilter === s ? "default" : "outline"}
-                  className={statusFilter === s ? "" : "bg-transparent"}
+                  className={`h-12 px-4 text-base ${
+                    statusFilter === s 
+                      ? "bg-[#0f3c5d] text-white hover:bg-[#0c304c]" 
+                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                  }`}
                   onClick={() => setStatusFilter(s)}
                   aria-pressed={statusFilter === s}
                 >
                   {s.charAt(0).toUpperCase() + s.slice(1)}
-                  <Badge variant="secondary" className="ml-2">
-                    {s === "all" ? statusCounts.all : (statusCounts as any)[s]}
-                  </Badge>
                 </Button>
               ))}
             </div>
           </div>
         </div>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Heart className="h-5 w-5" />
-              {loading ? "Loading…" : `${filteredMemorials.length} result${filteredMemorials.length === 1 ? "" : "s"}`}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="border rounded-lg h-40 bg-gray-100 animate-pulse" />
-                ))}
-              </div>
-            ) : filteredMemorials && filteredMemorials.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {filteredMemorials.map((m) => (
-                  <div key={m.id} className="border-0 rounded-lg overflow-hidden bg-white/90 shadow-sm">
-                    <div className="p-4 flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        {m.profile_image_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img 
-                            src={m.profile_image_url} 
-                            alt={`${m.full_name} memorial photo`} 
-                            className="w-16 h-16 rounded-full object-cover border-2 border-rose-200 shadow-sm" 
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-rose-100 border-2 border-rose-200 shadow-sm flex items-center justify-center">
-                            <Heart className="w-6 h-6 text-rose-400" />
-                          </div>
-                        )}
+
+        {/* Memorials Grid */}
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl h-80 animate-pulse" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Existing Memorials */}
+            {filteredMemorials && filteredMemorials.map((m) => (
+              <div
+                key={m.id}
+                className="group relative bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 h-full flex flex-col"
+              >
+                <Link
+                  href={`/memorial/${m.slug || m.id}`}
+                  className="flex-1 flex flex-col"
+                >
+                  {/* Image Section */}
+                  <div className="relative aspect-[4/3] bg-slate-100 overflow-hidden">
+                    {m.profile_image_url ? (
+                      <Image
+                        src={m.profile_image_url}
+                        alt={`${m.full_name} memorial photo`}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200">
+                        <Heart className="h-16 w-16 text-slate-400" />
                       </div>
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium text-foreground line-clamp-1">{m.full_name}</div>
-                          <Badge
-                            variant={m.status === "active" ? "default" : m.status === "pending" ? "secondary" : "outline"}
-                            className={`capitalize ${
-                              m.status === "active"
-                                ? "bg-emerald-600"
-                                : m.status === "pending"
-                                ? "bg-amber-500"
-                                : ""
-                            }`}
+                    )}
+                    <div className="absolute top-4 right-4 flex items-center gap-2">
+                      <Badge
+                        className={`capitalize text-sm font-medium ${
+                          m.status === "active"
+                            ? "bg-emerald-600 text-white"
+                            : m.status === "pending"
+                            ? "bg-amber-500 text-white"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {m.status}
+                      </Badge>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0 bg-white/90 hover:bg-white shadow-sm"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {m.status}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground line-clamp-1">{m.title}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Calendar className="h-3 w-3" aria-hidden />
-                          {new Date(m.created_at).toLocaleDateString()}
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                        <Link
-                          href={`/memorial/${m.slug || m.id}`}
-                          className="inline-flex items-center gap-1 text-rose-700 hover:underline text-sm"
-                        >
-                          <Eye className="h-4 w-4" /> View
-                        </Link>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/memorial/${m.slug || m.id}`} className="flex items-center">
-                                <Eye className="mr-2 h-4 w-4" />
-                                View Memorial
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setMemorialToDelete(m)}
-                              className="text-red-600 focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete Memorial
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        </div>
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem asChild>
+                            <Link href={`/memorial/${m.slug || m.id}`} className="flex items-center">
+                              <Eye className="mr-2 h-4 w-4" />
+                              View Memorial
+                            </Link>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              setMemorialToDelete(m)
+                            }}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Memorial
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* Content Section */}
+                  <div className="p-6 flex-1 flex flex-col">
+                    <h3 className="text-xl font-semibold text-slate-900 mb-1 line-clamp-1">
+                      {m.full_name}
+                    </h3>
+                    {m.title && (
+                      <p className="text-base text-slate-600 mb-4 line-clamp-2">
+                        {m.title}
+                      </p>
+                    )}
+                    <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                        <Calendar className="h-4 w-4" aria-hidden />
+                        <span>{new Date(m.created_at).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-[#0f3c5d] group-hover:underline">
+                          View
+                        </span>
+                        <Eye className="h-4 w-4 text-[#0f3c5d]" aria-hidden />
                       </div>
                     </div>
                   </div>
-                ))}
+                </Link>
               </div>
-            ) : (
-              <div className="text-center py-16">
-                <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
-                  <Heart className="h-6 w-6 text-rose-600" aria-hidden />
-                </div>
-                <h2 className="mt-4 text-lg font-semibold text-foreground">{memorials && memorials.length === 0 ? "No memorials yet" : "No matches found"}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {memorials && memorials.length === 0
-                    ? "Create your first memorial to begin."
-                    : "Try adjusting your filters or search."}
-                </p>
-                <div className="mt-6 flex items-center justify-center gap-3">
-                  <Link href="/create">
-                    <Button>Create memorial</Button>
-                  </Link>
-                  {(query || statusFilter !== "all") && (
-                    <Button variant="outline" className="bg-transparent" onClick={() => { setQuery(""); setStatusFilter("all") }}>
-                      Clear filters
-                    </Button>
+            ))}
+
+            {/* Placeholder Squares */}
+            {(() => {
+              // Use actual memorial count, not filtered count, for determining placeholders
+              const actualMemorialCount = memorials?.length || 0
+              const planType = usageData?.planType || "free"
+              const isPremium = planType !== "free"
+              const maxMemorials = planType === "free" ? 1 : -1
+              const isLocked = !isPremium && actualMemorialCount >= maxMemorials
+              // Show 2 placeholders if locked (to show upgrade opportunity), otherwise show available slots
+              const placeholderCount = isPremium ? 2 : (isLocked ? 2 : Math.max(0, maxMemorials - actualMemorialCount))
+
+              if (placeholderCount === 0) return null
+
+              return Array.from({ length: placeholderCount }).map((_, i) => (
+                <div
+                  key={`placeholder-${i}`}
+                  className={`relative bg-white rounded-xl overflow-hidden shadow-sm h-full flex flex-col ${
+                    isLocked 
+                      ? "border-2 border-dashed border-slate-300 opacity-75" 
+                      : "border border-slate-200 hover:shadow-md transition-all duration-300"
+                  }`}
+                >
+                  {isLocked ? (
+                    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                      {/* Lock Icon */}
+                      <div className="mb-4 w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+                        <Lock className="h-8 w-8 text-slate-400" />
+                      </div>
+                      
+                      {/* Locked Message */}
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                        Memorial Locked
+                      </h3>
+                      <p className="text-sm text-slate-600 mb-6 max-w-xs">
+                        Free plan allows 1 memorial. Upgrade to Premium for unlimited memorials.
+                      </p>
+                      
+                      {/* CTA Button */}
+                      <Link href="/pricing" className="w-full">
+                        <Button className="w-full bg-[#0f3c5d] hover:bg-[#0c304c] text-white">
+                          <Crown className="h-4 w-4 mr-2" />
+                          Upgrade to Unlock
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/create"
+                      className="flex-1 flex flex-col items-center justify-center p-6 text-center group"
+                    >
+                      {/* Plus Icon */}
+                      <div className="mb-4 w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center group-hover:bg-slate-200 transition-colors">
+                        <Plus className="h-8 w-8 text-slate-400 group-hover:text-slate-600" />
+                      </div>
+                      
+                      {/* Create Message */}
+                      <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                        Create New Memorial
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        Start honouring another memory
+                      </p>
+                    </Link>
                   )}
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ))
+            })()}
+          </div>
+        )}
+
+        {/* Empty State - Only show when no memorials exist and no placeholders should be shown */}
+        {!loading && (!memorials || memorials.length === 0) && (() => {
+          const actualMemorialCount = memorials?.length || 0
+          const planType = usageData?.planType || "free"
+          const isPremium = planType !== "free"
+          const maxMemorials = planType === "free" ? 1 : -1
+          const isLocked = !isPremium && actualMemorialCount >= maxMemorials
+          const placeholderCount = isPremium ? 2 : (isLocked ? 2 : Math.max(0, maxMemorials - actualMemorialCount))
+          return placeholderCount === 0
+        })() && (
+          <div className="text-center py-20">
+            <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-6">
+              <Heart className="h-8 w-8 text-slate-400" aria-hidden />
+            </div>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-2">
+              No memorials yet
+            </h2>
+            <p className="text-lg text-slate-600 mb-8">
+              Create your first memorial to begin honouring memories.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              <Link href="/create">
+                <Button className="bg-[#0f3c5d] hover:bg-[#0c304c] text-white h-12 px-8 text-base">
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Memorial
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* No matches found state - when filters hide all memorials */}
+        {!loading && filteredMemorials && filteredMemorials.length === 0 && memorials && memorials.length > 0 && (
+          <div className="text-center py-20">
+            <div className="mx-auto w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-6">
+              <Search className="h-8 w-8 text-slate-400" aria-hidden />
+            </div>
+            <h2 className="text-2xl font-semibold text-slate-900 mb-2">
+              No matches found
+            </h2>
+            <p className="text-lg text-slate-600 mb-8">
+              Try adjusting your filters or search terms.
+            </p>
+            <div className="flex items-center justify-center gap-4">
+              {(query || statusFilter !== "all") && (
+                <Button 
+                  variant="outline" 
+                  className="h-12 px-8 text-base border-slate-200"
+                  onClick={() => { setQuery(""); setStatusFilter("all") }}
+                >
+                  Clear filters
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Delete confirmation dialog */}

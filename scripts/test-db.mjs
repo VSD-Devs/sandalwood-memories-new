@@ -2,6 +2,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createClient } from '@supabase/supabase-js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -28,56 +29,65 @@ function loadDotenvLocal(cwd) {
   } catch {}
 }
 
-function getDatabaseUrl() {
-  const candidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  let url = candidates.find(v => typeof v === 'string' && v.trim().length > 0)
-  if (!url) return null
-  url = url.trim()
-  if (url.startsWith('postgres://')) url = url.replace('postgres://', 'postgresql://')
-  return url
+function getSupabaseConfig() {
+  const supabaseUrl = (process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').trim()
+  const supabaseServiceKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '').trim()
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return null
+  }
+  return { supabaseUrl, supabaseServiceKey }
+}
+
+async function checkTables(supabase) {
+  const tables = ['memorials', 'users', 'tributes', 'media', 'timeline_events']
+  for (const table of tables) {
+    try {
+      const { error } = await supabase.from(table).select('id', { count: 'exact', head: true }).limit(1)
+      if (error?.code === 'PGRST116') {
+        console.log(`table:${table}:missing`)
+      } else if (error) {
+        console.log(`table:${table}:err:${error.code || error.message}`)
+      } else {
+        console.log(`table:${table}:present`)
+      }
+    } catch (e) {
+      console.log(`table:${table}:err:${e?.message || 'unknown'}`)
+    }
+  }
 }
 
 async function main() {
   const cwd = path.join(__dirname, '..')
   loadDotenvLocal(cwd)
-  const url = getDatabaseUrl()
-  if (!url) {
-    console.log('status:no-db-url')
+
+  const config = getSupabaseConfig()
+  if (!config) {
+    console.log('status:no-supabase-env')
     return
   }
-  let neon
+
+  const supabase = createClient(config.supabaseUrl, config.supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
+
   try {
-    ;({ neon } = await import('@neondatabase/serverless'))
-  } catch {
-    console.log('status:no-neon')
-    return
-  }
-  try {
-    const sql = neon(url)
-    await sql`select 1`
-    console.log('connect:ok')
-    try {
-      const r = await sql`select to_regclass('public.memorials') as t`
-      console.log('table:memorials:' + (r?.[0]?.t ? 'present' : 'missing'))
-    } catch { console.log('table:memorials:err') }
-    try {
-      const r = await sql`select to_regclass('public.users') as t`
-      console.log('table:users:' + (r?.[0]?.t ? 'present' : 'missing'))
-    } catch { console.log('table:users:err') }
-    try {
-      const r = await sql`select to_regclass('users') as t`
-      console.log('table:users:' + (r?.[0]?.t ? 'present' : 'missing'))
-    } catch { console.log('table:users:err') }
-    try {
-      const r = await sql`select 1 from users limit 1`
-      console.log('select:users:ok')
-    } catch {
-      console.log('select:users:err')
+    const { error } = await supabase.from('users').select('id', { head: true, count: 'exact' }).limit(1)
+    if (error && error.code !== 'PGRST116') {
+      console.log('connect:err:' + (error.code || error.message))
+    } else {
+      console.log('connect:ok')
     }
   } catch (e) {
-    const code = e && (e.code || e.name || e.message || 'unknown')
-    console.log('connect:err:' + String(code))
+    const code = e && (e.code || e.name || 'unknown')
+    const message = e && e.message ? `:${e.message}` : ''
+    console.log('connect:err:' + String(code) + message)
+    if (e?.stack) {
+      console.log('stack:' + String(e.stack).split('\n')[0])
+    }
+    return
   }
+
+  await checkTables(supabase)
 }
 
 main()

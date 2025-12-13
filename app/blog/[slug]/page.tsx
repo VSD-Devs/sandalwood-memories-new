@@ -1,4 +1,19 @@
+import { buildMetadata } from "@/lib/seo"
 import Link from "next/link"
+
+const humaniseSlug = (slug: string) =>
+  slug
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+
+export function generateMetadata({ params }: { params: { slug: string } }) {
+  const readable = humaniseSlug(params.slug)
+  return buildMetadata({
+    title: `${readable} | Blog`,
+    description: `Read ${readable} from the Sandalwood Memories journal.`,
+    path: `/blog/${params.slug}`,
+  })
+}
 
 export default function BlogPostPage({ params }: { params: { slug: string } }) {
   const { slug } = params

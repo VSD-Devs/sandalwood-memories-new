@@ -151,4 +151,68 @@ export async function updateUserPassword(userId: string, newPassword: string): P
   }
 }
 
+export async function updateUserEmail(userId: string, newEmail: string): Promise<AuthUser | null> {
+  const { data, error } = await supabase
+    .from('users')
+    .update({
+      email: newEmail,
+      email_verified: false,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', userId)
+    .select('id, email, name, email_verified, created_at, updated_at')
+    .single()
+
+  if (error || !data) {
+    console.error('Error updating email:', error)
+    return null
+  }
+
+  return data as AuthUser
+}
+
+export async function createPasswordResetToken(email: string): Promise<{ token: string; expiresAt: string } | null> {
+  const token = crypto.randomUUID().replace(/-/g, "") + Math.random().toString(36).slice(2)
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString() // 1 hour
+
+  const { error } = await supabase
+    .from('password_resets')
+    .insert({
+      email,
+      token,
+      expires_at: expiresAt
+    })
+
+  if (error) {
+    console.error('Error creating password reset token:', error)
+    return null
+  }
+
+  return { token, expiresAt }
+}
+
+export async function verifyPasswordResetToken(token: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('password_resets')
+    .select('email, expires_at, used')
+    .eq('token', token)
+    .single()
+
+  if (error || !data) return null
+  if (data.used) return null
+  if (new Date(data.expires_at).getTime() < Date.now()) return null
+  return data.email
+}
+
+export async function consumePasswordResetToken(token: string): Promise<void> {
+  const { error } = await supabase
+    .from('password_resets')
+    .update({ used: true, used_at: new Date().toISOString() })
+    .eq('token', token)
+
+  if (error) {
+    console.error('Error consuming password reset token:', error)
+  }
+}
+
 

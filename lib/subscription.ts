@@ -1,18 +1,43 @@
 import { neon } from "@neondatabase/serverless"
 import { stripe, isStripeAvailable } from "./stripe"
 
-const isDatabaseAvailable = () => !!(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL_UNPOOLED)
-function getSql() {
+const BAD_SUPABASE_HOST = "api.pooler.supabase.com"
+let hasLoggedDbConfigWarning = false
+
+function getValidDatabaseUrl() {
   const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
   const candidates = rawCandidates
     .filter((v) => typeof v === "string" && v.trim().length > 0)
     .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
+
   for (const url of candidates) {
     try {
-      return neon(url)
-    } catch {}
+      const parsed = new URL(url)
+      if (parsed.hostname === BAD_SUPABASE_HOST) {
+        if (!hasLoggedDbConfigWarning) {
+          console.warn(
+            "Database URL looks like a Supabase pooled endpoint without a project ref (api.pooler.supabase.com). Skipping DB queries and treating users as free plan until configured."
+          )
+          hasLoggedDbConfigWarning = true
+        }
+        continue
+      }
+      return parsed.toString()
+    } catch {
+      // Ignore and continue trying other candidates
+    }
   }
-  throw new Error("DATABASE_URL is not set")
+
+  return null
+}
+
+const isDatabaseAvailable = () => !!getValidDatabaseUrl()
+function getSql() {
+  const url = getValidDatabaseUrl()
+  if (!url) {
+    throw new Error("DATABASE_URL is not set")
+  }
+  return neon(url)
 }
 
 export interface UserSubscription {
@@ -32,12 +57,22 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
     return null
   }
 
-  const result = (await getSql()`
-    SELECT * FROM user_subscriptions 
-    WHERE user_id = ${userId}
-    LIMIT 1
-  `) as unknown as UserSubscription[]
-  return result[0] || null
+  try {
+    const sql = getSql()
+    const result = (await sql`
+      SELECT * FROM user_subscriptions 
+      WHERE user_id = ${userId}
+      LIMIT 1
+    `) as unknown as UserSubscription[]
+    return result[0] || null
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (!hasLoggedDbConfigWarning) {
+      console.warn(`Failed to load subscription; treating as free plan (${message})`)
+      hasLoggedDbConfigWarning = true
+    }
+    return null
+  }
 }
 
 export async function createFreeSubscription(userId: string): Promise<UserSubscription> {

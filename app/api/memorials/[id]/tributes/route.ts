@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { getTributes, createTribute, getClientIP, verifySession, checkMemorialOwnership } from "@/lib/tributes"
 import { getSessionCookieName } from "@/lib/auth"
 import { cookies } from "next/headers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
 export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
@@ -11,16 +12,23 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const limit = parseInt(searchParams.get("limit") || "50")
     const offset = parseInt(searchParams.get("offset") || "0")
 
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get(getSessionCookieName())?.value
+    const user = await verifySession(sessionToken)
+    const access = await getMemorialAccess(id, user?.id)
+
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.canView) {
+      return NextResponse.json({ error: "This memorial is private", requiresAccess: true, requestStatus: access.requestStatus }, { status: 403 })
+    }
+
     // Check if user is the memorial owner (for viewing pending tributes)
     let isOwner = false
-    if (includePending) {
-      const cookieStore = await cookies()
-      const sessionToken = cookieStore.get(getSessionCookieName())?.value
-      const user = await verifySession(sessionToken)
-      
-      if (user) {
-        isOwner = await checkMemorialOwnership(id, user.id)
-      }
+    if (includePending && user) {
+      isOwner = await checkMemorialOwnership(id, user.id)
     }
 
     // Get approved tributes (all tributes are now auto-approved)
@@ -41,6 +49,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
   try {
     const { id } = await context.params
     const body = await request.json()
+    const cookieStore = await cookies()
+    const sessionToken = cookieStore.get(getSessionCookieName())?.value
+    const user = await verifySession(sessionToken)
+    const access = await getMemorialAccess(id, user?.id)
+
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.canView) {
+      return NextResponse.json({ error: "This memorial is private", requiresAccess: true, requestStatus: access.requestStatus }, { status: 403 })
+    }
     
     const { author_name, author_email, message } = body
 

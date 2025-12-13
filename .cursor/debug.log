@@ -1,0 +1,31 @@
+{"location":"test-db.mjs:main","message":"main function entry","hypothesisId":"A","data":{"step":"entry"},"timestamp":1765583560232,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"before loadDotenvLocal","hypothesisId":"C","data":{"step":"before-env-load"},"timestamp":1765583560232,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"after loadDotenvLocal","hypothesisId":"C","data":{"step":"after-env-load"},"timestamp":1765583560233,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"before getSupabaseConfig","hypothesisId":"A","data":{"step":"before-config"},"timestamp":1765583560233,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"after getSupabaseConfig","hypothesisId":"A","data":{"step":"after-config","hasConfig":true},"timestamp":1765583560233,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"before createClient","hypothesisId":"A","data":{"step":"before-client"},"timestamp":1765583560233,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"after createClient","hypothesisId":"A","data":{"step":"after-client"},"timestamp":1765583560246,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"before users query","hypothesisId":"A","data":{"step":"before-users-query"},"timestamp":1765583560246,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"after users query","hypothesisId":"A","data":{"step":"after-users-query","hasError":false},"timestamp":1765583560485,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"before checkTables","hypothesisId":"A","data":{"step":"before-check-tables"},"timestamp":1765583560487,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"checkTables entry","hypothesisId":"D","data":{"step":"entry"},"timestamp":1765583560487,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"before table query","hypothesisId":"D","data":{"step":"before-query","table":"memorials"},"timestamp":1765583560487,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"after table query","hypothesisId":"D","data":{"step":"after-query","table":"memorials","hasError":false},"timestamp":1765583560587,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"before table query","hypothesisId":"D","data":{"step":"before-query","table":"users"},"timestamp":1765583560587,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"after table query","hypothesisId":"D","data":{"step":"after-query","table":"users","hasError":false},"timestamp":1765583560645,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"before table query","hypothesisId":"D","data":{"step":"before-query","table":"tributes"},"timestamp":1765583560645,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"after table query","hypothesisId":"D","data":{"step":"after-query","table":"tributes","hasError":false},"timestamp":1765583560721,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"before table query","hypothesisId":"D","data":{"step":"before-query","table":"media"},"timestamp":1765583560721,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"after table query","hypothesisId":"D","data":{"step":"after-query","table":"media","hasError":false},"timestamp":1765583560791,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"before table query","hypothesisId":"D","data":{"step":"before-query","table":"timeline_events"},"timestamp":1765583560791,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"after table query","hypothesisId":"D","data":{"step":"after-query","table":"timeline_events","hasError":false},"timestamp":1765583560878,"sessionId":"debug-session"}
+{"location":"test-db.mjs:checkTables","message":"checkTables exit","hypothesisId":"D","data":{"step":"exit"},"timestamp":1765583560878,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"after checkTables","hypothesisId":"A","data":{"step":"after-check-tables"},"timestamp":1765583560878,"sessionId":"debug-session"}
+{"location":"test-db.mjs:main","message":"main function exit","hypothesisId":"A","data":{"step":"exit"},"timestamp":1765583560878,"sessionId":"debug-session"}
+{"location":"test-db.mjs","message":"main promise resolved","hypothesisId":"A","data":{"step":"promise-resolved"},"timestamp":1765583560879,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"wrapper script entry","hypothesisId":"B","data":{"step":"entry"},"timestamp":1765583560920,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"port 3000 is free","hypothesisId":"B","data":{"step":"port-free"},"timestamp":1765583560935,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"before spawn next dev","hypothesisId":"E","data":{"step":"before-spawn"},"timestamp":1765583560936,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"next dev spawned","hypothesisId":"B","data":{"step":"spawned","pid":5229},"timestamp":1765583560937,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"next dev stdout","hypothesisId":"E","data":{"step":"stdout","text":"   ▲ Next.js 15.5.7\n"},"timestamp":1765583561377,"sessionId":"debug-session"}
+{"location":"dev-wrapper.mjs","message":"next dev stdout","hypothesisId":"E","data":{"step":"stdout","text":"   - Local:        http://localhost:3000\n   - Network:      http://192.168.1.208:3000\n   - Environments: .env.local\n\n ✓ Starting...\n"},"timestamp":1765583561379,"sessionId":"debug-session"}

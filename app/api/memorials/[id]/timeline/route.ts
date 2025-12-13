@@ -1,36 +1,36 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { supabase } from "@/lib/database"
+import { getAuthenticatedUser } from "@/lib/auth-helpers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
-  }
-  return null
-}
-
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
 
-    const sql = getSql()
-    if (!sql) {
-      return NextResponse.json([])
+    const user = await getAuthenticatedUser(request)
+    const access = await getMemorialAccess(id, user?.id)
+
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
-    const rows = await sql`
-      SELECT id, memorial_id, title, description, event_date, category, media_id, created_at
-      FROM timeline_events
-      WHERE memorial_id = ${id}
-      ORDER BY event_date ASC NULLS LAST, created_at ASC
-    `
+    if (!access.canView) {
+      return NextResponse.json({ error: "This memorial is private", requestStatus: access.requestStatus, requiresAccess: true }, { status: 403 })
+    }
 
-    return NextResponse.json(rows || [])
+    const { data, error } = await supabase
+      .from("timeline_events")
+      .select("id, memorial_id, title, description, event_date, category, media_id, gallery_media_ids, created_at")
+      .eq("memorial_id", id)
+      .order("event_date", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: true })
+
+    if (error) {
+      console.error("Fetch timeline events error:", error)
+      return NextResponse.json({ error: "Failed to fetch timeline events" }, { status: 500 })
+    }
+
+    return NextResponse.json(data || [])
   } catch (err) {
     console.error("Fetch timeline events error:", err)
     return NextResponse.json({ error: "Failed to fetch timeline events" }, { status: 500 })
@@ -40,8 +40,29 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
+    const user = await getAuthenticatedUser(request)
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.isOwner && !access.isCollaborator) {
+      return NextResponse.json({ error: "You do not have permission to update this memorial" }, { status: 403 })
+    }
     const body = await request.json()
-    const { title, description = null, event_date = null, category = "milestone", media_id = null } = body || {}
+    const {
+      title,
+      description = null,
+      event_date = null,
+      category = "milestone",
+      media_id = null,
+      gallery_media_ids = [],
+    } = body || {}
 
     if (!title) {
       return NextResponse.json({ error: "title is required" }, { status: 400 })
@@ -55,12 +76,6 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     const validCategories = ["milestone", "achievement", "memory", "celebration"]
     if (!validCategories.includes(category)) {
       return NextResponse.json({ error: "Invalid category. Must be one of: milestone, achievement, memory, celebration" }, { status: 400 })
-    }
-
-    const sql = getSql()
-    if (!sql) {
-      // No DB available in this environment
-      return NextResponse.json({ id: crypto.randomUUID(), memorial_id: id, title, description, event_date, category, media_id })
     }
 
     // Handle different date formats
@@ -89,18 +104,37 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "Invalid event_date format. Expected YYYY-MM or YYYY-MM-DD" }, { status: 400 })
     }
     const normalizedMediaId = media_id && String(media_id).trim() !== "" ? media_id : null
-    const inserted = await sql`
-      INSERT INTO timeline_events (memorial_id, title, description, event_date, category, media_id)
-      VALUES (${id}, ${title}, ${description}, ${normalizedDate}, ${category}, ${normalizedMediaId})
-      RETURNING id, memorial_id, title, description, event_date, category, media_id, created_at
-    `
 
-    const newEvent = inserted?.[0]
-    if (!newEvent) {
+    // Optional gallery: keep unique string IDs, drop empties
+    const normalizedGallery: string[] = Array.isArray(gallery_media_ids)
+      ? Array.from(
+          new Set(
+            gallery_media_ids
+              .map((id: unknown) => (typeof id === "string" ? id.trim() : ""))
+              .filter((id) => id),
+          ),
+        )
+      : []
+    const { data, error } = await supabase
+      .from("timeline_events")
+      .insert({
+        memorial_id: id,
+        title,
+        description,
+        event_date: normalizedDate,
+        category,
+        media_id: normalizedMediaId,
+        gallery_media_ids: normalizedGallery,
+      })
+      .select()
+      .maybeSingle()
+
+    if (error || !data) {
+      console.error("Create timeline event error:", error)
       return NextResponse.json({ error: "Failed to create timeline event" }, { status: 500 })
     }
 
-    return NextResponse.json(newEvent)
+    return NextResponse.json(data)
   } catch (err) {
     console.error("Create timeline event error:", err)
     return NextResponse.json({ error: "Failed to create timeline event" }, { status: 500 })

@@ -12,12 +12,13 @@ interface User {
 
 interface AuthContextType {
   user: User | null
-  login: (email: string, password: string, name?: string) => Promise<boolean>
+  login: (email: string, password: string, name?: string) => Promise<{ ok: boolean; error?: string }>
   logout: () => void
   isLoading: boolean
   sendVerificationEmail: () => Promise<string | null>
   verifyEmail: (token: string) => boolean
   changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>
+  changeEmail: (currentPassword: string, newEmail: string) => Promise<{ ok: boolean; error?: string; verifyLink?: string | null }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -73,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })()
   }, [])
 
-  const login = async (email: string, password: string, name?: string): Promise<boolean> => {
+  const login = async (email: string, password: string, name?: string): Promise<{ ok: boolean; error?: string }> => {
     setIsLoading(true)
     try {
       // If name is provided, attempt signup; otherwise login
@@ -86,8 +87,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       const data = await res.json()
       if (!res.ok || !data?.user) {
+        const msg =
+          data?.error ||
+          (res.status === 401
+            ? "Email or password is incorrect. Please double-check the spelling."
+            : "Unable to sign in right now. Please try again.")
         setIsLoading(false)
-        return false
+        return { ok: false, error: msg }
       }
       const nextUser: User = {
         id: data.user.id,
@@ -98,10 +104,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(nextUser)
       localStorage.setItem("memorial-user", JSON.stringify(nextUser))
       setIsLoading(false)
-      return true
+      return { ok: true }
     } catch {
       setIsLoading(false)
-      return false
+      return { ok: false, error: "Network error. Please try again." }
     }
   }
 
@@ -118,13 +124,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch("/api/auth/verify/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email: user.email }),
       })
       if (!res.ok) return null
-      const origin = typeof window !== "undefined" ? window.location.origin : ""
-      // The user will ultimately click the emailed link which hits the API, but we return a UX link to the pretty page
-      const prettyLink = `${origin}/verify/${""}`
-      return prettyLink
+
+      const data = await res.json()
+      const origin = typeof window !== "undefined" ? window.location.origin.replace(/\/$/, "") : ""
+      const linkFromApi: string | null = data?.link ?? null
+      const fallbackLink =
+        data?.token && origin
+          ? `${origin}/verify/${encodeURIComponent(String(data.token))}`
+          : null
+      const finalLink = linkFromApi || fallbackLink || null
+
+      if (finalLink && typeof navigator !== "undefined" && navigator.clipboard) {
+        try {
+          await navigator.clipboard.writeText(finalLink)
+        } catch {
+          // clipboard may be blocked; ignore
+        }
+      }
+
+      return finalLink
     } catch {
       return null
     }
@@ -155,6 +177,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const changeEmail = async (currentPassword: string, newEmail: string): Promise<{ ok: boolean; error?: string; verifyLink?: string | null }> => {
+    if (!user) return { ok: false, error: "Please sign in first." }
+    try {
+      const csrf = document.cookie
+        .split(";")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith("mp_csrf="))
+        ?.split("=")[1]
+      const res = await fetch("/api/auth/email", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf || "" },
+        body: JSON.stringify({ currentPassword, newEmail }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.user) {
+        return { ok: false, error: data?.error || "Unable to update email right now." }
+      }
+
+      const nextUser: User = {
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        emailVerified: Boolean(data.user.emailVerified ?? data.user.email_verified),
+      }
+      setUser(nextUser)
+      localStorage.setItem("memorial-user", JSON.stringify(nextUser))
+
+      return { ok: true, verifyLink: data?.verifyLink || null }
+    } catch {
+      return { ok: false, error: "Network error. Please try again." }
+    }
+  }
+
   const value = {
     user,
     login,
@@ -163,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sendVerificationEmail,
     verifyEmail,
     changePassword,
+    changeEmail,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

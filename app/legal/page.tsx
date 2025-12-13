@@ -1,4 +1,11 @@
 import Link from "next/link"
+import { buildMetadata } from "@/lib/seo"
+
+export const metadata = buildMetadata({
+  title: "Legal policies",
+  description: "Read the privacy policy, cookie policy, and terms for Sandalwood Memories.",
+  path: "/legal",
+})
 
 export default function LegalHubPage() {
   const items = [

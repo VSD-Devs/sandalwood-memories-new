@@ -1,31 +1,37 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { neon } from "@neondatabase/serverless"
-
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
-  }
-  return null
-}
+import { supabase } from "@/lib/database"
+import { getAuthenticatedUser } from "@/lib/auth-helpers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
 export async function PATCH(request: NextRequest, context: { params: Promise<{ id: string; eventId: string }> }) {
   try {
     const { id, eventId } = await context.params
+    const user = await getAuthenticatedUser(request)
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.isOwner && !access.isCollaborator) {
+      return NextResponse.json({ error: "You do not have permission to update this memorial" }, { status: 403 })
+    }
     if (String(eventId).startsWith("boundary-")) {
       return NextResponse.json({ error: "Cannot edit boundary events" }, { status: 400 })
     }
-    const sql = getSql()
-    if (!sql) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 503 })
-    }
     const body = await request.json()
-    const { title, description = null, event_date = null, category = null, media_id = null } = body || {}
+    const {
+      title,
+      description = null,
+      event_date = null,
+      category = null,
+      media_id = null,
+      gallery_media_ids = undefined,
+    } = body || {}
     
     // Validate required fields for update
     if (event_date !== null && !event_date) {
@@ -55,16 +61,37 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
     }
     const normalizedMediaId = media_id && String(media_id).trim() !== "" ? media_id : null
 
-    await sql`
-      UPDATE timeline_events
-      SET
-        title = COALESCE(${title}, title),
-        description = ${description},
-        event_date = ${normalizedDate},
-        category = COALESCE(${category}, category),
-        media_id = ${normalizedMediaId}
-      WHERE id = ${eventId} AND memorial_id = ${id}
-    `
+    const normalizedGallery =
+      gallery_media_ids === undefined
+        ? undefined
+        : Array.isArray(gallery_media_ids)
+          ? Array.from(
+              new Set(
+                gallery_media_ids
+                  .map((id: unknown) => (typeof id === "string" ? id.trim() : ""))
+                  .filter((id) => id),
+              ),
+            )
+          : []
+
+    const updates: Record<string, any> = {
+      title,
+      description,
+      event_date: normalizedDate,
+      category,
+      media_id: normalizedMediaId,
+    }
+
+    if (normalizedGallery !== undefined) {
+      updates.gallery_media_ids = normalizedGallery
+    }
+
+    const { error } = await supabase.from("timeline_events").update(updates).eq("id", eventId).eq("memorial_id", id)
+
+    if (error) {
+      console.error("Update timeline event error:", error)
+      return NextResponse.json({ error: "Failed to update timeline event" }, { status: 500 })
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
@@ -76,14 +103,28 @@ export async function PATCH(request: NextRequest, context: { params: Promise<{ i
 export async function DELETE(_request: NextRequest, context: { params: Promise<{ id: string; eventId: string }> }) {
   try {
     const { id, eventId } = await context.params
+    const user = await getAuthenticatedUser(_request)
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.isOwner && !access.isCollaborator) {
+      return NextResponse.json({ error: "You do not have permission to update this memorial" }, { status: 403 })
+    }
     if (String(eventId).startsWith("boundary-")) {
       return NextResponse.json({ error: "Cannot delete boundary events" }, { status: 400 })
     }
-    const sql = getSql()
-    if (!sql) {
-      return NextResponse.json({ error: "Database not configured" }, { status: 503 })
+    const { error } = await supabase.from("timeline_events").delete().eq("id", eventId).eq("memorial_id", id)
+    if (error) {
+      console.error("Delete timeline event error:", error)
+      return NextResponse.json({ error: "Failed to delete timeline event" }, { status: 500 })
     }
-    await sql`DELETE FROM timeline_events WHERE id = ${eventId} AND memorial_id = ${id}`
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error("Delete timeline event error:", err)

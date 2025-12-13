@@ -26,8 +26,11 @@ interface TimelineEventMediaProps {
   eventTitle: string
   eventDate: string | null
   primaryMediaId?: string | null
+  galleryMediaIds?: string[]
   allMedia: MediaItem[]
   className?: string
+  canEdit?: boolean
+  onRemoveMedia?: (mediaId?: string) => Promise<void> | void
 }
 
 // Helper function to check if URL is YouTube
@@ -50,60 +53,28 @@ const getYouTubeEmbedUrl = (url: string): string => {
 
 // Smart function to find related media for a timeline event
 const findRelatedMedia = (
-  eventTitle: string,
-  eventDate: string | null,
   primaryMediaId: string | null,
+  galleryMediaIds: string[] | undefined,
   allMedia: MediaItem[]
 ): MediaItem[] => {
+  const orderedIds = [
+    ...(primaryMediaId ? [primaryMediaId] : []),
+    ...(Array.isArray(galleryMediaIds) ? galleryMediaIds : []),
+  ]
+
+  const seen = new Set<string>()
   const related: MediaItem[] = []
-  
-  // Always include the primary media if it exists
-  if (primaryMediaId) {
-    const primaryMedia = allMedia.find(m => m.id === primaryMediaId)
-    if (primaryMedia) related.push(primaryMedia)
-  }
-  
-  // Find additional related media based on various criteria
-  const eventWords = eventTitle.toLowerCase().split(' ').filter(word => word.length > 2)
-  const eventDateObj = eventDate ? new Date(eventDate) : null
-  
-  allMedia.forEach(media => {
-    // Skip if already included as primary
-    if (media.id === primaryMediaId) return
-    
-    let score = 0
-    
-    // Check title similarity
-    const mediaTitle = (media.title || media.original_filename || '').toLowerCase()
-    eventWords.forEach(word => {
-      if (mediaTitle.includes(word)) score += 2
-    })
-    
-    // Check if media title contains event-related terms
-    if (mediaTitle.includes('timeline') || mediaTitle.includes(eventTitle.toLowerCase().substring(0, 8))) {
-      score += 3
-    }
-    
-    // Check date proximity (within 30 days)
-    if (eventDateObj) {
-      const mediaDate = new Date(media.created_at)
-      const daysDiff = Math.abs((eventDateObj.getTime() - mediaDate.getTime()) / (1000 * 60 * 60 * 24))
-      if (daysDiff <= 30) score += 1
-      if (daysDiff <= 7) score += 2
-    }
-    
-    // Include if score is high enough
-    if (score >= 2) {
+
+  orderedIds.forEach((id) => {
+    if (!id || seen.has(id)) return
+    const media = allMedia.find((m) => m.id === id)
+    if (media) {
       related.push(media)
+      seen.add(id)
     }
   })
-  
-  // Remove duplicates and limit to 9 items for display
-  const uniqueRelated = related.filter((item, index, self) => 
-    index === self.findIndex(t => t.id === item.id)
-  )
-  
-  return uniqueRelated.slice(0, 9)
+
+  return related
 }
 
 export default function TimelineEventMedia({ 
@@ -111,14 +82,18 @@ export default function TimelineEventMedia({
   eventTitle, 
   eventDate, 
   primaryMediaId, 
+  galleryMediaIds,
   allMedia, 
-  className = "" 
+  className = "",
+  canEdit = false,
+  onRemoveMedia
 }: TimelineEventMediaProps) {
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [isRemoving, setIsRemoving] = useState(false)
 
-  const relatedMedia = findRelatedMedia(eventTitle, eventDate, primaryMediaId, allMedia)
+  const relatedMedia = findRelatedMedia(primaryMediaId || null, galleryMediaIds, allMedia)
   
   if (relatedMedia.length === 0) return null
 
@@ -142,9 +117,9 @@ export default function TimelineEventMedia({
   }
 
   const renderMediaThumbnail = (media: MediaItem, size: 'large' | 'small' = 'large') => {
-    const sizeClasses = size === 'large' 
-      ? 'w-full h-48' 
-      : 'w-full h-16'
+    const sizeClasses = size === 'large'
+      ? 'w-full h-80'
+      : 'w-full h-20'
     
     if (media.file_type === "image") {
       return (
@@ -200,9 +175,53 @@ export default function TimelineEventMedia({
     return null
   }
 
+  const handleRemove = async () => {
+    if (!onRemoveMedia) return
+    if (!confirm('Remove this image or video from the timeline entry?')) return
+
+    try {
+      setIsRemoving(true)
+      await onRemoveMedia(selectedMedia?.id)
+      setGalleryOpen(false)
+    } finally {
+      setIsRemoving(false)
+    }
+  }
+
+  const formattedSelectedDate = (() => {
+    if (!selectedMedia) return null
+    if (selectedMedia.created_at) {
+      try {
+        return format(new Date(selectedMedia.created_at), "MMMM d, yyyy")
+      } catch {}
+    }
+    if (eventDate) {
+      const parsed = new Date(eventDate)
+      if (!isNaN(parsed.getTime())) {
+        try {
+          return format(parsed, "MMMM d, yyyy")
+        } catch {}
+      }
+    }
+    return null
+  })()
+
   return (
     <>
-      <div className={`mb-4 ${className}`}>
+      <div data-event-id={eventId} className={`mb-4 ${className}`}>
+        {canEdit && onRemoveMedia && (
+          <div className="flex justify-end mb-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRemove}
+              disabled={isRemoving}
+              className="text-red-700 border-red-200 hover:bg-red-50"
+            >
+              {isRemoving ? "Removing…" : "Remove from timeline"}
+            </Button>
+          </div>
+        )}
         {hasMultiple ? (
           // Multiple media - show grid layout
           <div className="space-y-3">
@@ -246,8 +265,8 @@ export default function TimelineEventMedia({
                 
                 {/* Show "+X more" overlay if there are more than 3 items */}
                 {relatedMedia.length > 3 && (
-                  <div 
-                    className="w-full h-16 bg-black/50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-black/60 transition-colors border border-slate-200"
+                  <div
+                    className="w-full h-20 bg-black/50 rounded-lg flex items-center justify-center cursor-pointer hover:bg-black/60 transition-colors border border-slate-200"
                     onClick={() => openGallery(3)}
                   >
                     <div className="text-center text-white">
@@ -355,7 +374,7 @@ export default function TimelineEventMedia({
                   <p className="text-white/80 mb-2">{selectedMedia.description}</p>
                 )}
                 <div className="flex items-center space-x-4 text-sm text-white/60">
-                  <span>{format(new Date(selectedMedia.created_at), "MMMM d, yyyy")}</span>
+                  {formattedSelectedDate && <span>{formattedSelectedDate}</span>}
                   {selectedMedia.uploaded_by && (
                     <>
                       <span>•</span>

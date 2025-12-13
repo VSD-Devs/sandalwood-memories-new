@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Heart, ArrowLeft, CalendarIcon, Upload, Eye, Info } from "lucide-react"
 import Link from "next/link"
-import { format } from "date-fns"
+import { format, parse, isValid } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/contexts/auth-context"
 import { checkUsageLimits } from "@/lib/usage-limits"
@@ -27,8 +27,6 @@ interface MemorialData {
   passedDate: Date | undefined
   relationship: string
   profileImage: string
-  coverImage: string
-  theme: string
   isAlive: boolean
   burialLocation?: string | null
 }
@@ -39,7 +37,6 @@ export default function CreateMemorialPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const profileInputRef = useRef<HTMLInputElement | null>(null)
-  const coverInputRef = useRef<HTMLInputElement | null>(null)
   const [limitModal, setLimitModal] = useState<{
     isOpen: boolean
     message: string
@@ -56,14 +53,53 @@ export default function CreateMemorialPage() {
     passedDate: undefined,
     relationship: "",
     profileImage: "",
-    coverImage: "",
-    theme: "classic",
     isAlive: false,
     burialLocation: null,
+  })
+  const [dateInputs, setDateInputs] = useState<{ birth: string; pass: string }>({
+    birth: "",
+    pass: "",
+  })
+  const [dateErrors, setDateErrors] = useState<{ birth: string; pass: string }>({
+    birth: "",
+    pass: "",
   })
 
   const handleInputChange = (field: keyof MemorialData, value: any) => {
     setMemorialData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const parseTypedDate = (value: string) => {
+    const trimmed = value.trim()
+    if (!trimmed) return { date: undefined, error: "" }
+
+    const formats = ["d/M/yyyy", "d/M/yy", "dd/MM/yyyy", "yyyy-MM-dd", "yyyy/MM/dd", "yyyy-MM"]
+    for (const fmt of formats) {
+      const parsed = parse(trimmed, fmt, new Date())
+      if (isValid(parsed)) return { date: parsed, error: "" }
+    }
+
+    // Fallback: just a year
+    if (/^\d{4}$/.test(trimmed)) {
+      const parsed = new Date(Number(trimmed), 0, 1)
+      if (isValid(parsed)) return { date: parsed, error: "" }
+    }
+
+    return {
+      date: undefined,
+      error: "Use DD/MM/YYYY, YYYY-MM-DD or just YYYY",
+    }
+  }
+
+  const handleDateTextChange = (key: "birth" | "pass", value: string) => {
+    setDateInputs((prev) => ({ ...prev, [key]: value }))
+    const { date, error } = parseTypedDate(value)
+    setDateErrors((prev) => ({ ...prev, [key]: error }))
+    if (key === "birth") {
+      handleInputChange("birthDate", date)
+    } else {
+      handleInputChange("passedDate", date)
+    }
   }
 
   const handleNext = () => {
@@ -99,9 +135,7 @@ export default function CreateMemorialPage() {
           title: memorialData.subtitle || memorialData.name,
           birth_date: memorialData.birthDate?.toISOString().slice(0, 10) || null,
           death_date: memorialData.isAlive ? null : memorialData.passedDate?.toISOString().slice(0, 10) || null,
-          theme: memorialData.theme,
           profile_image_url: memorialData.profileImage || null,
-          cover_image_url: memorialData.coverImage || null,
           is_alive: memorialData.isAlive,
           burial_location: memorialData.burialLocation?.trim() || null,
         }),
@@ -312,11 +346,36 @@ export default function CreateMemorialPage() {
                       <Calendar
                         mode="single"
                         selected={memorialData.birthDate}
-                        onSelect={(date) => handleInputChange("birthDate", date)}
+                        onSelect={(date) => {
+                          handleInputChange("birthDate", date)
+                          setDateInputs((prev) => ({
+                            ...prev,
+                            birth: date ? format(date, "yyyy-MM-dd") : "",
+                          }))
+                          setDateErrors((prev) => ({ ...prev, birth: "" }))
+                        }}
+                        fromYear={1800}
+                        toYear={new Date().getFullYear() + 5}
                         initialFocus
                       />
                     </PopoverContent>
                   </Popover>
+                  <div className="space-y-1">
+                    <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                    <Input
+                      placeholder="DD/MM/YYYY or YYYY"
+                      value={dateInputs.birth}
+                      onChange={(e) => handleDateTextChange("birth", e.target.value)}
+                      className="h-10"
+                      inputMode="numeric"
+                      aria-describedby={dateErrors.birth ? "birth-date-error" : undefined}
+                    />
+                    {dateErrors.birth ? (
+                      <p id="birth-date-error" className="text-xs text-red-600">{dateErrors.birth}</p>
+                    ) : (
+                      <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
+                    )}
+                  </div>
                     <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
                       <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                       <span>If you're unsure, month and year are perfectly fine.</span>
@@ -343,11 +402,36 @@ export default function CreateMemorialPage() {
                         <Calendar
                           mode="single"
                           selected={memorialData.passedDate}
-                          onSelect={(date) => handleInputChange("passedDate", date)}
+                          onSelect={(date) => {
+                            handleInputChange("passedDate", date)
+                            setDateInputs((prev) => ({
+                              ...prev,
+                              pass: date ? format(date, "yyyy-MM-dd") : "",
+                            }))
+                            setDateErrors((prev) => ({ ...prev, pass: "" }))
+                          }}
+                          fromYear={1800}
+                          toYear={new Date().getFullYear() + 5}
                           initialFocus
                         />
                       </PopoverContent>
                     </Popover>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                      <Input
+                        placeholder="DD/MM/YYYY or YYYY"
+                        value={dateInputs.pass}
+                        onChange={(e) => handleDateTextChange("pass", e.target.value)}
+                        className="h-10"
+                        inputMode="numeric"
+                        aria-describedby={dateErrors.pass ? "pass-date-error" : undefined}
+                      />
+                      {dateErrors.pass ? (
+                        <p id="pass-date-error" className="text-xs text-red-600">{dateErrors.pass}</p>
+                      ) : (
+                        <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
+                      )}
+                    </div>
                     <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
                       <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                       <span>Leave blank if you're not ready to share this yet.</span>
@@ -424,41 +508,6 @@ export default function CreateMemorialPage() {
                     After creating the memorial, you'll be able to personalise the biography with their unique story, memories, and achievements.
                   </p>
                 </div>
-              </div>
-
-              <div className="space-y-4">
-                <Label className="text-sm font-medium">Style</Label>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { id: "classic", name: "Classic", description: "Timeless and elegant" },
-                    { id: "modern", name: "Modern", description: "Clean and contemporary" },
-                    { id: "warm", name: "Warm", description: "Cozy and inviting" },
-                  ].map((theme) => (
-                    <Card
-                      key={theme.id}
-                      className={cn(
-                        "cursor-pointer border-2 transition-none",
-                        memorialData.theme === theme.id ? "border-[#4A90A4] bg-[#E8F0F5]" : "border-slate-200",
-                      )}
-                      onClick={() => handleInputChange("theme", theme.id)}
-                      role="button"
-                      aria-pressed={memorialData.theme === theme.id}
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") handleInputChange("theme", theme.id)
-                      }}
-                    >
-                      <CardContent className="p-4 text-center">
-                        <h4 className="font-medium text-[#1B3B5F]">{theme.name}</h4>
-                        <p className="text-sm text-slate-600">{theme.description}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-              <div className="flex items-start gap-2 text-xs text-slate-600" aria-live="polite">
-                <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
-                <span>Pick a starting look — you can change it at any time.</span>
               </div>
 
               <div className="space-y-2">
@@ -587,55 +636,6 @@ export default function CreateMemorialPage() {
                   />
                 </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium">Cover Photo</Label>
-                  <div className="flex items-start gap-2 -mt-1 mb-1 text-xs text-slate-600" aria-live="polite">
-                    <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
-                    <span>Landscape image recommended; around 1600×600 looks great.</span>
-                  </div>
-                <div
-                  className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#4A90A4] transition-colors cursor-pointer overflow-hidden"
-                  onClick={() => coverInputRef.current?.click()}
-                >
-                  {memorialData.coverImage ? (
-                    <img
-                      src={memorialData.coverImage}
-                      alt="Cover preview"
-                      className="w-full h-48 object-cover rounded-md"
-                    />
-                  ) : (
-                    <>
-                      <Upload className="h-8 w-8 text-slate-400 mx-auto mb-2" />
-                      <p className="text-sm text-slate-600">Click to upload cover photo</p>
-                    </>
-                  )}
-                  <input
-                    ref={coverInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0]
-                      if (!file) return
-                      try {
-                        const processed = await MediaProcessor.processImage(file)
-                        const blob = await fetch(processed.url).then((r) => r.blob())
-                        const reader = new FileReader()
-                        reader.onloadend = () => {
-                          const dataUrl = reader.result as string
-                          handleInputChange("coverImage", dataUrl)
-                        }
-                        reader.readAsDataURL(blob)
-                      } catch (err) {
-                        console.error("Failed to process cover image", err)
-                      } finally {
-                        if (coverInputRef.current) coverInputRef.current.value = ""
-                      }
-                    }}
-                  />
-                </div>
-                </div>
               </div>
 
               {/* Preview Summary */}
@@ -656,9 +656,6 @@ export default function CreateMemorialPage() {
                   </p>
                   <p>
                     <strong>Burial/Ashes:</strong> {memorialData.burialLocation?.trim() || "Not specified"}
-                  </p>
-                  <p>
-                    <strong>Theme:</strong> {memorialData.theme}
                   </p>
                   <p>
                     <strong>Biography:</strong> Will be automatically generated with a lovely template

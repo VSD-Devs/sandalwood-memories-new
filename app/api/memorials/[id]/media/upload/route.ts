@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { put } from "@vercel/blob"
+import { getAuthenticatedUser } from "@/lib/auth-helpers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
 // Enhanced server-side validation with type-specific size limits
 const ALLOWED_TYPES = new Set([
@@ -29,6 +31,20 @@ function getMaxFileSize(fileType: string): number {
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
+    const user = await getAuthenticatedUser(request)
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.isOwner && !access.isCollaborator) {
+      return NextResponse.json({ error: "You do not have permission to upload media" }, { status: 403 })
+    }
     
     // Validate memorial ID format
     if (!id || typeof id !== 'string' || id.trim().length === 0) {

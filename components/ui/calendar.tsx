@@ -15,26 +15,44 @@ function Calendar({
   className,
   classNames,
   showOutsideDays = true,
-  captionLayout = "label",
+  captionLayout = "dropdown",
   buttonVariant = "ghost",
   formatters,
   components,
+  fromYear,
+  toYear,
+  defaultMonth,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
 }) {
+  const today = new Date()
+  const lowerYearBound = fromYear ?? 1800
+  const upperYearBound = toYear ?? today.getFullYear() + 5
+  const derivedDefaultMonth =
+    defaultMonth ??
+    props.month ??
+    (props.selected instanceof Date ? props.selected : undefined) ??
+    new Date(
+      Math.min(Math.max(today.getFullYear() - 60, lowerYearBound), upperYearBound),
+      0,
+      1
+    )
   const defaultClassNames = getDefaultClassNames()
 
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
+      captionLayout={captionLayout}
+      fromYear={lowerYearBound}
+      toYear={upperYearBound}
+      defaultMonth={derivedDefaultMonth}
       className={cn(
         "bg-background group/calendar p-3 [--cell-size:--spacing(8)] [[data-slot=card-content]_&]:bg-transparent [[data-slot=popover-content]_&]:bg-transparent",
         String.raw`rtl:**:[.rdp-button\_next>svg]:rotate-180`,
         String.raw`rtl:**:[.rdp-button\_previous>svg]:rotate-180`,
         className
       )}
-      captionLayout={captionLayout}
       formatters={{
         formatMonthDropdown: (date) =>
           date.toLocaleString("default", { month: "short" }),

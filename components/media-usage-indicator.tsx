@@ -72,7 +72,7 @@ export default function MediaUsageIndicator({
   if (loading) {
     return (
       <div className={`text-center py-2 ${className}`}>
-        <span className="text-xs text-slate-500">Loading usage...</span>
+        <span className="text-sm md:text-base text-slate-600">Loading usage...</span>
       </div>
     )
   }
@@ -85,12 +85,12 @@ export default function MediaUsageIndicator({
 
   if (isPremium) {
     return (
-      <div className={`flex items-center gap-2 ${className}`}>
-        <Badge variant="default" className="flex items-center gap-1">
-          <Crown className="h-3 w-3" />
+      <div className={`flex items-center gap-3 ${className}`}>
+        <Badge variant="default" className="flex items-center gap-2 text-sm px-3 py-1.5">
+          <Crown className="h-4 w-4" />
           Premium
         </Badge>
-        <span className="text-xs text-slate-500">Unlimited media</span>
+        <span className="text-sm text-slate-600">Unlimited media</span>
       </div>
     )
   }
@@ -101,35 +101,35 @@ export default function MediaUsageIndicator({
       <div className="space-y-2">
         {/* Photos */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1">
-              <Image className="h-3 w-3" />
+          <div className="flex items-center justify-between text-sm md:text-base">
+            <div className="flex items-center gap-2">
+              <Image className="h-4 w-4" />
               <span>Photos</span>
             </div>
-            <span className={photoAtLimit ? "text-amber-600 font-medium" : "text-slate-600"}>
+            <span className={photoAtLimit ? "text-amber-700 font-semibold" : "text-slate-700 font-medium"}>
               {photoCount}/{limits.maxPhotosPerMemorial}
             </span>
           </div>
           <Progress 
             value={(photoCount / limits.maxPhotosPerMemorial) * 100} 
-            className="h-1"
+            className="h-2 rounded-full"
           />
         </div>
 
         {/* Videos */}
         <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1">
-              <Video className="h-3 w-3" />
+          <div className="flex items-center justify-between text-sm md:text-base">
+            <div className="flex items-center gap-2">
+              <Video className="h-4 w-4" />
               <span>Videos</span>
             </div>
-            <span className={videoAtLimit ? "text-amber-600 font-medium" : "text-slate-600"}>
+            <span className={videoAtLimit ? "text-amber-700 font-semibold" : "text-slate-700 font-medium"}>
               {videoCount}/{limits.maxVideosPerMemorial}
             </span>
           </div>
           <Progress 
             value={(videoCount / limits.maxVideosPerMemorial) * 100} 
-            className="h-1"
+            className="h-2 rounded-full"
           />
         </div>
       </div>
@@ -137,9 +137,9 @@ export default function MediaUsageIndicator({
       {/* Upgrade prompt if at limits */}
       {anyAtLimit && showUpgrade && (
         <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-          <AlertTriangle className="h-3 w-3 text-amber-600 flex-shrink-0" />
+          <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-amber-800">
+            <p className="text-sm md:text-base text-amber-800">
               {photoAtLimit && videoAtLimit 
                 ? "Photo and video limits reached"
                 : photoAtLimit 
@@ -149,8 +149,8 @@ export default function MediaUsageIndicator({
             </p>
           </div>
           <Link href="/pricing">
-            <Button size="sm" variant="outline" className="h-6 text-xs border-amber-300 text-amber-700 hover:bg-amber-100">
-              <Crown className="h-2 w-2 mr-1" />
+            <Button size="sm" variant="outline" className="h-9 text-sm px-3 border-amber-300 text-amber-800 hover:bg-amber-100">
+              <Crown className="h-3 w-3 mr-1" />
               Upgrade
             </Button>
           </Link>
@@ -159,13 +159,13 @@ export default function MediaUsageIndicator({
 
       {/* Free plan badge */}
       <div className="flex items-center justify-between">
-        <Badge variant="secondary" className="text-xs">
+        <Badge variant="secondary" className="text-sm px-3 py-1.5">
           Free Plan
         </Badge>
         {!anyAtLimit && showUpgrade && (
           <Link href="/pricing">
-            <Button variant="ghost" size="sm" className="h-6 text-xs text-slate-500 hover:text-slate-700">
-              <Crown className="h-2 w-2 mr-1" />
+            <Button variant="ghost" size="sm" className="h-9 text-sm px-3 text-slate-600 hover:text-slate-800">
+              <Crown className="h-3 w-3 mr-1" />
               Upgrade
             </Button>
           </Link>

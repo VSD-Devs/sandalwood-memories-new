@@ -20,8 +20,10 @@ export default function VerifyBanner() {
   const handleResend = async () => {
     const link = await sendVerificationEmail()
     toast({
-      title: "Verification link generated",
-      description: link ? "We've copied it to your clipboard." : "Please check your inbox.",
+      title: link ? "Verification link ready" : "Verification email sent",
+      description: link
+        ? "We’ve copied your verification link and emailed it to you."
+        : "Please check your inbox for the verification email.",
     })
   }
 

@@ -4,80 +4,80 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* Sandalwood Memories brand colours */
-  --primary: #E90B64; /* magenta brand */
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: #4D4D4D; /* neutral dark grey */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: #BE2064; /* deeper accent */
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: #E90B64;
-  /* Soft background tints aligned to brand */
-  --memorial-bg: #FFF4F9;
-  --memorial-card: #FBE8F2;
+  --background: #f4f6fb;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  /* Cool, accessible palette */
+  --primary: #1B3B5F;
+  --primary-foreground: #f5f8ff;
+  --secondary: #274472;
+  --secondary-foreground: #f5f8ff;
+  --muted: #e7edf5;
+  --muted-foreground: #1f2937;
+  --accent: #dfe7f3;
+  --accent-foreground: #0f172a;
+  --destructive: #b42318;
+  --destructive-foreground: #fff8f3;
+  --border: #d5deea;
+  --input: #d5deea;
+  --ring: #1B3B5F;
+  /* Soft background tints aligned to the memorial view */
+  --memorial-bg: #f4f6fa;
+  --memorial-card: #f7f9fd;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #E90B64;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: #E90B64;
+  --sidebar: #eef2f8;
+  --sidebar-foreground: #0f172a;
+  --sidebar-primary: #1B3B5F;
+  --sidebar-primary-foreground: #f5f8ff;
+  --sidebar-accent: #e7edf5;
+  --sidebar-accent-foreground: #0f172a;
+  --sidebar-border: #d5deea;
+  --sidebar-ring: #1B3B5F;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: #E90B64;
-  --primary-foreground: oklch(0.145 0 0);
-  --secondary: #4D4D4D;
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: #BE2064;
-  --accent-foreground: oklch(0.145 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: #E90B64;
-  --memorial-bg: #170F49;
-  --memorial-card: #101723;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
+  --background: #0b1220;
+  --foreground: #e5eaf5;
+  --card: #0f1828;
+  --card-foreground: #e5eaf5;
+  --popover: #0f1828;
+  --popover-foreground: #e5eaf5;
+  --primary: #b7cff5;
+  --primary-foreground: #0b1628;
+  --secondary: #1f2f4a;
+  --secondary-foreground: #e5eaf5;
+  --muted: #182235;
+  --muted-foreground: #cbd5e1;
+  --accent: #1a2942;
+  --accent-foreground: #e5eaf5;
+  --destructive: #f15b46;
+  --destructive-foreground: #0b0f17;
+  --border: #1f2a3c;
+  --input: #1f2a3c;
+  --ring: #b7cff5;
+  --memorial-bg: #0e1726;
+  --memorial-card: #131e2f;
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: #E90B64;
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: #E90B64;
+  --sidebar: #0f1828;
+  --sidebar-foreground: #e5eaf5;
+  --sidebar-primary: #b7cff5;
+  --sidebar-primary-foreground: #0b1628;
+  --sidebar-accent: #182235;
+  --sidebar-accent-foreground: #e5eaf5;
+  --sidebar-border: #1f2a3c;
+  --sidebar-ring: #b7cff5;
 }
 
 @theme inline {
@@ -132,8 +132,24 @@
   body {
     @apply bg-memorial-bg text-foreground;
     font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(27, 59, 95, 0.08), transparent 35%),
+      radial-gradient(circle at 78% 14%, rgba(67, 90, 139, 0.08), transparent 32%),
+      radial-gradient(circle at 52% 84%, rgba(14, 165, 233, 0.08), transparent 38%),
+      linear-gradient(180deg, #f4f6fb 0%, #f7f9fd 45%, #eef2f8 100%);
+    background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

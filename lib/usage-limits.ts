@@ -1,19 +1,12 @@
-import { neon } from "@neondatabase/serverless"
+import { supabase } from "./database"
 import { getUserSubscription } from "./subscription"
 
-function getSql() {
-  const candidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  let url = candidates.find((v) => typeof v === "string" && v.trim().length > 0)
-  if (!url) return null
-  url = url.trim()
-  if (url.startsWith("postgres://")) {
-    url = url.replace("postgres://", "postgresql://")
-  }
-  return neon(url)
+function hasSupabase() {
+  return Boolean((process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL) && (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY))
 }
 
-function isDatabaseAvailable(): boolean {
-  return Boolean(process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.DATABASE_URL_UNPOOLED)
+function nowIso() {
+  return new Date().toISOString()
 }
 
 export interface UsageLimits {
@@ -30,25 +23,25 @@ export const PLAN_LIMITS: Record<string, UsageLimits> = {
     maxMemorials: 1,
     maxPhotosPerMemorial: 3,
     maxVideosPerMemorial: 1,
-    maxVideoSizeMB: 50, // 50MB per video for free users
-    maxTotalStorageMB: 100, // Increased storage for videos
-    maxTimelineEvents: -1, // Unlimited timeline events
+    maxVideoSizeMB: 50,
+    maxTotalStorageMB: 100,
+    maxTimelineEvents: -1,
   },
   premium: {
-    maxMemorials: -1, // Unlimited
+    maxMemorials: -1,
     maxPhotosPerMemorial: 500,
-    maxVideosPerMemorial: 50, // 50 videos per memorial
-    maxVideoSizeMB: 2048, // 2GB per memorial
-    maxTotalStorageMB: -1, // Unlimited
-    maxTimelineEvents: -1, // Unlimited
+    maxVideosPerMemorial: 50,
+    maxVideoSizeMB: 2048,
+    maxTotalStorageMB: -1,
+    maxTimelineEvents: -1,
   },
   fully_managed: {
-    maxMemorials: -1, // Unlimited
-    maxPhotosPerMemorial: -1, // Unlimited
-    maxVideosPerMemorial: -1, // Unlimited
-    maxVideoSizeMB: -1, // Unlimited
-    maxTotalStorageMB: -1, // Unlimited
-    maxTimelineEvents: -1, // Unlimited
+    maxMemorials: -1,
+    maxPhotosPerMemorial: -1,
+    maxVideosPerMemorial: -1,
+    maxVideoSizeMB: -1,
+    maxTotalStorageMB: -1,
+    maxTimelineEvents: -1,
   },
 }
 
@@ -66,88 +59,73 @@ export interface UserUsage {
 }
 
 export async function getUserUsage(userId: string): Promise<UserUsage> {
-  if (!isDatabaseAvailable()) {
-    return {
-      memorialCount: 0,
-      totalStorageMB: 0,
-      memorialUsage: [],
-    }
+  if (!hasSupabase()) {
+    return { memorialCount: 0, totalStorageMB: 0, memorialUsage: [] }
   }
 
-  // Get memorial count (exclude deleted memorials, check both created_by and owner_user_id)
-  const sql = getSql()!
-  const memorialCountResult = await sql`
-    SELECT COUNT(*) as count 
-    FROM memorials 
-    WHERE (created_by = ${userId} OR owner_user_id = ${userId})
-    AND (status IS NULL OR status != 'deleted')
-  `
-  const memorialCount = Number.parseInt(memorialCountResult[0]?.count || "0")
-
-  // Get usage per memorial (handle missing photo_count/video_count columns gracefully)
-  let memorialUsageResult: Array<{ memorial_id: number; media_count: number; photo_count: number; video_count: number; media_size_mb: number; timeline_events: number }>
-  
+  let memorialCount = 0
   try {
-    // Try to query with photo_count and video_count columns
-    memorialUsageResult = (await sql`
-      SELECT 
-        memorial_id,
-        media_count,
-        COALESCE(photo_count, 0) as photo_count,
-        COALESCE(video_count, 0) as video_count,
-        media_size_mb,
-        timeline_events
-      FROM memorial_usage 
-      WHERE user_id = ${userId}
-    `) as Array<{ memorial_id: number; media_count: number; photo_count: number; video_count: number; media_size_mb: number; timeline_events: number }>
-  } catch (error: any) {
-    // If columns don't exist, query without them and set defaults
-    if (error?.code === '42703' || error?.message?.includes('does not exist')) {
-      const result = await sql`
-        SELECT 
-          memorial_id,
-          media_count,
-          media_size_mb,
-          timeline_events
-        FROM memorial_usage 
-        WHERE user_id = ${userId}
-      `
-      memorialUsageResult = result.map((row: any) => ({
+    const { count, error } = await supabase
+      .from("memorials")
+      .select("id", { count: "exact", head: true })
+      .eq("created_by", userId)
+      .neq("status", "deleted")
+
+    if (!error && typeof count === "number") {
+      memorialCount = count
+    }
+  } catch (err) {
+    console.warn("Failed to count memorials:", err)
+  }
+
+  let memorialUsage: UserUsage["memorialUsage"] = []
+
+  try {
+    const { data, error } = await supabase
+      .from("memorial_usage")
+      .select("memorial_id, media_count, photo_count, video_count, media_size_mb, timeline_events")
+      .eq("user_id", userId)
+
+    if (error && error.message?.includes("column") && error.message?.includes("does not exist")) {
+      const fallback = await supabase
+        .from("memorial_usage")
+        .select("memorial_id, media_count, media_size_mb, timeline_events")
+        .eq("user_id", userId)
+      memorialUsage = (fallback.data || []).map((row: any) => ({
         memorial_id: row.memorial_id,
         media_count: row.media_count || 0,
-        photo_count: 0, // Default to 0 if column doesn't exist
-        video_count: 0, // Default to 0 if column doesn't exist
+        photo_count: 0,
+        video_count: 0,
         media_size_mb: row.media_size_mb || 0,
         timeline_events: row.timeline_events || 0,
       }))
+    } else if (error) {
+      console.warn("Failed to read memorial usage:", error)
     } else {
-      throw error
+      memorialUsage = (data || []).map((row: any) => ({
+        memorial_id: row.memorial_id,
+        media_count: row.media_count || 0,
+        photo_count: row.photo_count || 0,
+        video_count: row.video_count || 0,
+        media_size_mb: row.media_size_mb || 0,
+        timeline_events: row.timeline_events || 0,
+      }))
     }
+  } catch (err) {
+    console.warn("Failed to read memorial usage:", err)
   }
 
-  // Calculate total storage
-  const totalStorageMB = memorialUsageResult.reduce(
-    (total, usage) => total + Number.parseFloat(String(usage.media_size_mb ?? "0")),
-    0,
-  )
+  const totalStorageMB = memorialUsage.reduce((total, usage) => total + Number.parseFloat(String(usage.media_size_mb ?? "0")), 0)
 
-  return {
-    memorialCount,
-    totalStorageMB,
-    memorialUsage: memorialUsageResult,
-  }
+  return { memorialCount, totalStorageMB, memorialUsage }
 }
 
 export async function checkUsageLimits(
   userId: string,
   action: string,
   data?: any,
-): Promise<{
-  allowed: boolean
-  message?: string
-  upgradeRequired?: boolean
-}> {
-  if (!isDatabaseAvailable()) {
+): Promise<{ allowed: boolean; message?: string; upgradeRequired?: boolean }> {
+  if (!hasSupabase()) {
     return { allowed: true }
   }
 
@@ -167,14 +145,13 @@ export async function checkUsageLimits(
       }
       break
 
-    case "upload_media":
+    case "upload_media": {
       const { files, memorialId } = data
       const memorialUsage = usage.memorialUsage.find((u) => u.memorial_id === memorialId)
       const currentPhotoCount = memorialUsage?.photo_count || 0
       const currentVideoCount = memorialUsage?.video_count || 0
       const currentStorageMB = memorialUsage?.media_size_mb || 0
 
-      // Check photo count limit
       const photoFiles = files.filter((f: File) => f.type.startsWith("image/"))
       if (limits.maxPhotosPerMemorial !== -1 && currentPhotoCount + photoFiles.length > limits.maxPhotosPerMemorial) {
         return {
@@ -184,7 +161,6 @@ export async function checkUsageLimits(
         }
       }
 
-      // Check video count limit
       const videoFiles = files.filter((f: File) => f.type.startsWith("video/"))
       if (limits.maxVideosPerMemorial !== -1 && currentVideoCount + videoFiles.length > limits.maxVideosPerMemorial) {
         return {
@@ -194,7 +170,6 @@ export async function checkUsageLimits(
         }
       }
 
-      // Check video file size for free plan
       if (planType === "free" && videoFiles.length > 0) {
         const videoFile = videoFiles[0]
         const videoSizeMB = videoFile.size / 1024 / 1024
@@ -207,9 +182,8 @@ export async function checkUsageLimits(
         }
       }
 
-      // Check total storage limit
       const newStorageMB = files.reduce((total: number, file: File) => total + file.size / 1024 / 1024, 0)
-      if (limits.maxTotalStorageMB !== -1 && usage.totalStorageMB + newStorageMB > limits.maxTotalStorageMB) {
+      if (limits.maxTotalStorageMB !== -1 && currentStorageMB + newStorageMB > limits.maxTotalStorageMB) {
         return {
           allowed: false,
           message: `Free plan allows only ${limits.maxTotalStorageMB}MB total storage. This upload would exceed your limit.`,
@@ -217,8 +191,9 @@ export async function checkUsageLimits(
         }
       }
       break
+    }
 
-    case "add_timeline_event":
+    case "add_timeline_event": {
       const memorialTimelineUsage = usage.memorialUsage.find((u) => u.memorial_id === data.memorialId)
       const currentEvents = memorialTimelineUsage?.timeline_events || 0
 
@@ -230,6 +205,7 @@ export async function checkUsageLimits(
         }
       }
       break
+    }
   }
 
   return { allowed: true }
@@ -237,7 +213,7 @@ export async function checkUsageLimits(
 
 export async function updateMemorialUsage(
   userId: string,
-  memorialId: number,
+  memorialId: string,
   updates: {
     mediaCount?: number
     photoCount?: number
@@ -246,43 +222,44 @@ export async function updateMemorialUsage(
     timelineEvents?: number
   },
 ) {
-  if (!isDatabaseAvailable()) {
-    return
-  }
+  if (!hasSupabase()) return
 
   const { mediaCount, photoCount, videoCount, mediaSizeMB, timelineEvents } = updates
+  const basePayload: Record<string, any> = {
+    user_id: userId,
+    memorial_id: memorialId,
+    updated_at: nowIso(),
+  }
 
-  const sql = getSql()!
-  
-  // Try to update with photo_count and video_count, fall back to basic columns if they don't exist
-  try {
-    await sql`
-      INSERT INTO memorial_usage (user_id, memorial_id, media_count, photo_count, video_count, media_size_mb, timeline_events, updated_at)
-      VALUES (${userId}, ${memorialId}, ${mediaCount || 0}, ${photoCount || 0}, ${videoCount || 0}, ${mediaSizeMB || 0}, ${timelineEvents || 0}, NOW())
-      ON CONFLICT (memorial_id)
-      DO UPDATE SET
-        media_count = COALESCE(${mediaCount}, memorial_usage.media_count),
-        photo_count = COALESCE(${photoCount}, memorial_usage.photo_count),
-        video_count = COALESCE(${videoCount}, memorial_usage.video_count),
-        media_size_mb = COALESCE(${mediaSizeMB}, memorial_usage.media_size_mb),
-        timeline_events = COALESCE(${timelineEvents}, memorial_usage.timeline_events),
-        updated_at = NOW()
-    `
-  } catch (error: any) {
-    // If photo_count/video_count columns don't exist, use basic update
-    if (error?.code === '42703' || error?.message?.includes('does not exist')) {
-      await sql`
-        INSERT INTO memorial_usage (user_id, memorial_id, media_count, media_size_mb, timeline_events, updated_at)
-        VALUES (${userId}, ${memorialId}, ${mediaCount || 0}, ${mediaSizeMB || 0}, ${timelineEvents || 0}, NOW())
-        ON CONFLICT (memorial_id)
-        DO UPDATE SET
-          media_count = COALESCE(${mediaCount}, memorial_usage.media_count),
-          media_size_mb = COALESCE(${mediaSizeMB}, memorial_usage.media_size_mb),
-          timeline_events = COALESCE(${timelineEvents}, memorial_usage.timeline_events),
-          updated_at = NOW()
-      `
-    } else {
-      throw error
+  if (mediaCount !== undefined) basePayload.media_count = mediaCount
+  if (photoCount !== undefined) basePayload.photo_count = photoCount
+  if (videoCount !== undefined) basePayload.video_count = videoCount
+  if (mediaSizeMB !== undefined) basePayload.media_size_mb = mediaSizeMB
+  if (timelineEvents !== undefined) basePayload.timeline_events = timelineEvents
+
+  const existing = await supabase
+    .from("memorial_usage")
+    .select("id")
+    .eq("memorial_id", memorialId)
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  const apply = async (payload: Record<string, any>) => {
+    if (existing.data?.id) {
+      return supabase.from("memorial_usage").update(payload).eq("id", existing.data.id)
     }
+    return supabase.from("memorial_usage").insert(payload)
+  }
+
+  let result = await apply(basePayload)
+  if (result.error && result.error.message?.includes("column") && result.error.message?.includes("does not exist")) {
+    const fallbackPayload = { ...basePayload }
+    delete fallbackPayload.photo_count
+    delete fallbackPayload.video_count
+    result = await apply(fallbackPayload)
+  }
+
+  if (result.error) {
+    console.warn("Failed to update memorial usage:", result.error)
   }
 }

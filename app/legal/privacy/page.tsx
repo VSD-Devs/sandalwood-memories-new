@@ -2,6 +2,13 @@ import { promises as fs } from "fs"
 import path from "path"
 import Link from "next/link"
 import { addHeadingAnchorsAndExtractToc } from "@/lib/html-toc"
+import { buildMetadata } from "@/lib/seo"
+
+export const metadata = buildMetadata({
+  title: "Privacy policy",
+  description: "How Sandalwood Memories collects, uses, and protects personal data and memorial content.",
+  path: "/legal/privacy",
+})
 
 export default async function PrivacyPolicyPage() {
   const filePath = path.join(process.cwd(), "content", "legal", "privacy.html")

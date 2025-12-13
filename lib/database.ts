@@ -1,13 +1,22 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const isServer = typeof window === 'undefined'
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables')
+if (!supabaseUrl) {
+  throw new Error('Missing Supabase URL environment variable')
 }
 
-export const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+// On the server prefer service role; in the browser fall back to anon.
+const effectiveKey = isServer ? (supabaseServiceKey || supabaseAnonKey) : supabaseAnonKey
+
+if (!effectiveKey) {
+  throw new Error('Missing Supabase key environment variable')
+}
+
+export const supabase = createClient(supabaseUrl, effectiveKey, {
   auth: {
     autoRefreshToken: false,
     persistSession: false
@@ -133,49 +142,53 @@ export async function getMemorialById(id: string) {
 
 export async function getMemorialBySlug(slug: string) {
   try {
-    const result = await getSql()`
-      SELECT m.*, u.name as creator_name, u.email as creator_email
-      FROM memorials m
-      LEFT JOIN users u ON m.created_by = u.id
-      WHERE m.slug = ${slug}
-    `
-    return result[0] as (Memorial & { creator_name: string; creator_email: string }) | undefined
+    const { data, error } = await supabase
+      .from('memorials')
+      .select(`
+        *,
+        users (
+          name,
+          email
+        )
+      `)
+      .eq('slug', slug)
+      .single()
+
+    if (error || !data) return undefined
+
+    return {
+      ...data,
+      creator_name: data.users?.name || '',
+      creator_email: data.users?.email || '',
+      users: undefined,
+    } as (Memorial & { creator_name: string; creator_email: string })
   } catch (error) {
-    // If slug column doesn't exist yet, return undefined
     console.error('Error in getMemorialBySlug:', error)
     return undefined
   }
 }
 
 export async function checkSlugExists(slug: string, excludeId?: string) {
-  const sql = getSql()
-  let result
-  
-  if (excludeId) {
-    result = await sql`
-      SELECT COUNT(*) as count FROM memorials 
-      WHERE slug = ${slug} AND id != ${excludeId}
-    `
-  } else {
-    result = await sql`
-      SELECT COUNT(*) as count FROM memorials 
-      WHERE slug = ${slug}
-    `
-  }
-  
-  return parseInt(result[0]?.count || '0') > 0
+  const query = supabase
+    .from('memorials')
+    .select('id', { count: 'exact', head: true })
+    .eq('slug', slug)
+
+  if (excludeId) query.neq('id', excludeId)
+
+  const { count } = await query
+  return (count || 0) > 0
 }
 
 export async function updateMemorialStatus(id: string, status: "active" | "pending" | "archived") {
-  await getSql()`
-    UPDATE memorials 
-    SET status = ${status}, updated_at = NOW()
-    WHERE id = ${id}
-  `
+  await supabase
+    .from('memorials')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
 }
 
 export async function deleteMemorial(id: string) {
-  await getSql()`DELETE FROM memorials WHERE id = ${id}`
+  await supabase.from('memorials').delete().eq('id', id)
 }
 
 // User operations

@@ -1,6 +1,13 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { addHeadingAnchorsAndExtractToc } from "@/lib/html-toc"
+import { buildMetadata } from "@/lib/seo"
+
+export const metadata = buildMetadata({
+  title: "Cookie policy",
+  description: "How Sandalwood Memories uses cookies and how you can manage your preferences.",
+  path: "/legal/cookies",
+})
 
 export default async function CookiePolicyPage() {
   const filePath = path.join(process.cwd(), "content", "legal", "cookies.html")

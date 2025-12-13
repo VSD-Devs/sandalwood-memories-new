@@ -1,0 +1,68 @@
+<svg width="1400" height="2000" viewBox="0 0 1400 2000" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="ringGold" x1="260" y1="520" x2="1140" y2="1500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#e1c08f"/>
+      <stop offset="0.5" stop-color="#d6ab74"/>
+      <stop offset="1" stop-color="#c59163"/>
+    </linearGradient>
+    <linearGradient id="leafFill" x1="0" y1="0" x2="180" y2="200" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6b8586"/>
+      <stop offset="1" stop-color="#4f6d70"/>
+    </linearGradient>
+    <linearGradient id="leafFillDark" x1="0" y1="0" x2="140" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#597474"/>
+      <stop offset="1" stop-color="#3f595c"/>
+    </linearGradient>
+    <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <circle cx="700" cy="1040" r="430" stroke="url(#ringGold)" stroke-width="12" opacity="0.9" fill="none" filter="url(#softGlow)" />
+  <circle cx="700" cy="1040" r="400" stroke="url(#ringGold)" stroke-width="6" opacity="0.85" fill="none" />
+
+  <g transform="translate(360 920) rotate(-16)">
+    <path d="M48 360C88 276 122 184 168 76" stroke="#d3a26c" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M120 280C150 260 188 252 214 262C188 288 162 304 120 312Z" fill="url(#leafFill)"/>
+    <path d="M96 210C124 188 166 178 190 186C170 212 142 232 102 236Z" fill="url(#leafFillDark)"/>
+    <path d="M74 142C98 120 134 110 162 116C142 142 116 162 80 166Z" fill="url(#leafFill)"/>
+    <path d="M34 260C60 242 102 238 130 248C108 270 74 288 40 290Z" fill="url(#leafFillDark)"/>
+    <circle cx="190" cy="182" r="12" fill="#e7c0b9" stroke="#d2a08e" stroke-width="3"/>
+    <circle cx="210" cy="204" r="9" fill="#eac8c0" stroke="#d2a08e" stroke-width="3"/>
+    <circle cx="172" cy="236" r="11" fill="#eac3bc" stroke="#d2a08e" stroke-width="3"/>
+  </g>
+
+  <g transform="translate(760 1110) rotate(12)">
+    <path d="M22 60C74 160 118 272 144 392" stroke="#d3a26c" stroke-width="10" stroke-linecap="round" fill="none"/>
+    <path d="M16 136C44 114 82 106 112 116C88 142 56 162 20 166Z" fill="url(#leafFill)"/>
+    <path d="M34 204C64 184 102 178 132 188C110 212 78 232 40 236Z" fill="url(#leafFillDark)"/>
+    <path d="M60 278C88 256 126 248 154 258C132 284 100 304 66 308Z" fill="url(#leafFill)"/>
+    <path d="M102 330C130 310 168 304 196 314C170 340 134 360 106 362Z" fill="url(#leafFillDark)"/>
+    <circle cx="144" cy="188" r="12" fill="#e7c0b9" stroke="#d2a08e" stroke-width="3"/>
+    <circle cx="122" cy="222" r="10" fill="#eac8c0" stroke="#d2a08e" stroke-width="3"/>
+    <circle cx="168" cy="246" r="9" fill="#eac3bc" stroke="#d2a08e" stroke-width="3"/>
+  </g>
+
+  <g transform="translate(560 1320)">
+    <path d="M40 60C78 20 132 8 182 20C146 56 100 82 52 88Z" fill="url(#leafFill)" />
+    <path d="M140 116C182 84 240 70 286 84C246 122 194 150 146 154Z" fill="url(#leafFillDark)" />
+    <circle cx="210" cy="80" r="10" fill="#eac8c0" stroke="#d2a08e" stroke-width="3"/>
+    <circle cx="184" cy="110" r="9" fill="#e7c0b9" stroke="#d2a08e" stroke-width="3"/>
+  </g>
+
+  <circle cx="420" cy="1050" r="5" fill="#d9b07b" opacity="0.9"/>
+  <circle cx="1000" cy="870" r="6" fill="#d9b07b" opacity="0.9"/>
+  <circle cx="720" cy="620" r="4" fill="#d9b07b" opacity="0.7"/>
+</svg>
+
+
+
+
+
+
+
+

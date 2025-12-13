@@ -1,6 +1,13 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { addHeadingAnchorsAndExtractToc } from "@/lib/html-toc"
+import { buildMetadata } from "@/lib/seo"
+
+export const metadata = buildMetadata({
+  title: "Terms & conditions",
+  description: "The terms for using Sandalwood Memories, including content rules, subscriptions, and rights.",
+  path: "/legal/terms",
+})
 
 export default async function TermsPage() {
   const filePath = path.join(process.cwd(), "content", "legal", "terms.html")

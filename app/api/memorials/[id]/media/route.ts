@@ -1,67 +1,72 @@
 import { NextResponse, type NextRequest } from "next/server"
-import { neon } from "@neondatabase/serverless"
+import { supabase } from "@/lib/database"
 import { updateMemorialUsage } from "@/lib/usage-limits"
-
-function getSql() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-  for (const url of candidates) {
-    try {
-      return neon(url)
-    } catch {}
-  }
-  return null
-}
+import { getAuthenticatedUser } from "@/lib/auth-helpers"
+import { getMemorialAccess } from "@/lib/memorial-access"
 
 async function getMemorialMediaCounts(memorialId: string) {
-  const sql = getSql()
-  if (!sql) return { photo_count: 0, video_count: 0, media_count: 0 }
+  const [{ count: media_count = 0, error: mediaError }, { count: photo_count = 0, error: photoError }, { count: video_count = 0, error: videoError }] =
+    await Promise.all([
+      supabase.from("media").select("id", { count: "exact", head: true }).eq("memorial_id", memorialId),
+      supabase
+        .from("media")
+        .select("id", { count: "exact", head: true })
+        .eq("memorial_id", memorialId)
+        .eq("file_type", "image"),
+      supabase
+        .from("media")
+        .select("id", { count: "exact", head: true })
+        .eq("memorial_id", memorialId)
+        .eq("file_type", "video"),
+    ])
 
-  const result = await sql`
-    SELECT 
-      COUNT(*) FILTER (WHERE file_type = 'image') as photo_count,
-      COUNT(*) FILTER (WHERE file_type = 'video') as video_count,
-      COUNT(*) as media_count
-    FROM media 
-    WHERE memorial_id = ${memorialId}
-  `
-  
-  return {
-    photo_count: Number(result[0]?.photo_count || 0),
-    video_count: Number(result[0]?.video_count || 0),
-    media_count: Number(result[0]?.media_count || 0)
+  if (mediaError || photoError || videoError) {
+    console.error("Failed to count memorial media:", mediaError || photoError || videoError)
   }
+
+  return { photo_count: photo_count || 0, video_count: video_count || 0, media_count: media_count || 0 }
 }
 
 async function getMemorialOwner(memorialId: string): Promise<string | null> {
-  const sql = getSql()
-  if (!sql) return null
+  const { data, error } = await supabase
+    .from("memorials")
+    .select("created_by")
+    .eq("id", memorialId)
+    .maybeSingle()
 
-  const result = await sql`
-    SELECT created_by
-    FROM memorials 
-    WHERE id = ${memorialId}
-  `
-  
-  return result[0]?.created_by || null
+  if (error) {
+    console.error("Failed to fetch memorial owner:", error)
+    return null
+  }
+
+  return data?.created_by || null
 }
 
-export async function GET(_request: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
-    const sql = getSql()
-    if (!sql) {
-      return NextResponse.json([])
+    const user = await getAuthenticatedUser(request)
+    const access = await getMemorialAccess(id, user?.id)
+
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
-    const rows = await sql`
-      SELECT id, memorial_id, file_url, file_type, title, description, uploaded_by, created_at
-      FROM media
-      WHERE memorial_id = ${id}
-      ORDER BY created_at DESC
-    `
-    return NextResponse.json(rows || [])
+
+    if (!access.canView) {
+      return NextResponse.json({ error: "This memorial is private", requiresAccess: true, requestStatus: access.requestStatus }, { status: 403 })
+    }
+    const { data, error } = await supabase
+      .from("media")
+      .select("id, memorial_id, file_url, file_type, title, description, uploaded_by, created_at")
+      .eq("memorial_id", id)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Fetch media error:", error)
+      return NextResponse.json({ error: "Failed to fetch media" }, { status: 500 })
+    }
+
+    return NextResponse.json(data || [])
   } catch (err) {
     console.error("Fetch media error:", err)
     return NextResponse.json({ error: "Failed to fetch media" }, { status: 500 })
@@ -71,6 +76,20 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ id
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params
+    const user = await getAuthenticatedUser(request)
+
+    if (!user) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+
+    const access = await getMemorialAccess(id, user.id)
+    if (!access) {
+      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
+    }
+
+    if (!access.isOwner && !access.isCollaborator) {
+      return NextResponse.json({ error: "You do not have permission to add media" }, { status: 403 })
+    }
     const body = await request.json()
     const items: Array<{
       file_url: string
@@ -93,46 +112,37 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       uploaded_by: it.uploaded_by && String(it.uploaded_by).trim() !== "" ? String(it.uploaded_by) : null,
     }))
 
-    const sql = getSql()
-    if (!sql) {
-      // No DB: return echo objects with generated IDs to support local/dev
-      const now = new Date().toISOString()
-      const echo = sanitized.map((it) => ({
-        id: crypto.randomUUID(),
-        memorial_id: id,
-        file_url: it.file_url,
-        file_type: it.file_type,
-        title: it.title,
-        description: it.description,
-        uploaded_by: it.uploaded_by || null,
-        created_at: now,
-      }))
-      return NextResponse.json({ items: echo })
+    const { data, error } = await supabase
+      .from("media")
+      .insert(
+        sanitized.map((it) => ({
+          memorial_id: id,
+          file_url: it.file_url,
+          file_type: it.file_type,
+          title: it.title,
+          description: it.description,
+          uploaded_by: it.uploaded_by || null,
+        })),
+      )
+      .select()
+
+    if (error) {
+      console.error("Create media error:", error)
+      return NextResponse.json({ error: "Failed to create media" }, { status: 500 })
     }
 
-    const inserted = await Promise.all(
-      sanitized.map(async (it) => {
-        const rows = await sql`
-          INSERT INTO media (memorial_id, file_url, file_type, title, description, uploaded_by)
-          VALUES (${id}, ${it.file_url}, ${it.file_type}, ${it.title}, ${it.description}, ${it.uploaded_by})
-          RETURNING id, memorial_id, file_url, file_type, title, description, uploaded_by, created_at
-        `
-        return rows?.[0]
-      })
-    )
+    const validInserted = data || []
 
-    const validInserted = inserted.filter(Boolean)
-    
     // Update memorial usage statistics after successful media insertion
     if (validInserted.length > 0) {
       try {
         const memorialOwner = await getMemorialOwner(id)
         if (memorialOwner) {
           const mediaCounts = await getMemorialMediaCounts(id)
-          await updateMemorialUsage(memorialOwner, Number(id), {
+          await updateMemorialUsage(memorialOwner, id, {
             mediaCount: mediaCounts.media_count,
             photoCount: mediaCounts.photo_count,
-            videoCount: mediaCounts.video_count
+            videoCount: mediaCounts.video_count,
           })
         }
       } catch (error) {
