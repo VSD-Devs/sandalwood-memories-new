@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Loader2 } from "lucide-react"
 
+import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/auth-context"
 import { useMemorialState } from "@/hooks/use-memorial-state"
 import MemorialAccessGate from "@/components/memorial/memorial-access-gate"
