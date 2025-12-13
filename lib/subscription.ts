@@ -1,43 +1,24 @@
-import { neon } from "@neondatabase/serverless"
+import { createClient } from "@supabase/supabase-js"
 import { stripe, isStripeAvailable } from "./stripe"
 
-const BAD_SUPABASE_HOST = "api.pooler.supabase.com"
-let hasLoggedDbConfigWarning = false
+// Supabase client for database operations
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-function getValidDatabaseUrl() {
-  const rawCandidates = [process.env.DATABASE_URL, process.env.POSTGRES_URL, process.env.DATABASE_URL_UNPOOLED]
-  const candidates = rawCandidates
-    .filter((v) => typeof v === "string" && v.trim().length > 0)
-    .map((v) => v!.trim().replace(/^postgres:\/\//, "postgresql://"))
-
-  for (const url of candidates) {
-    try {
-      const parsed = new URL(url)
-      if (parsed.hostname === BAD_SUPABASE_HOST) {
-        if (!hasLoggedDbConfigWarning) {
-          console.warn(
-            "Database URL looks like a Supabase pooled endpoint without a project ref (api.pooler.supabase.com). Skipping DB queries and treating users as free plan until configured."
-          )
-          hasLoggedDbConfigWarning = true
-        }
-        continue
-      }
-      return parsed.toString()
-    } catch {
-      // Ignore and continue trying other candidates
-    }
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error("Supabase configuration not available")
   }
 
-  return null
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  })
 }
 
-const isDatabaseAvailable = () => !!getValidDatabaseUrl()
-function getSql() {
-  const url = getValidDatabaseUrl()
-  if (!url) {
-    throw new Error("DATABASE_URL is not set")
-  }
-  return neon(url)
+const isDatabaseAvailable = () => {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  return !!(supabaseUrl && supabaseServiceKey)
 }
 
 export interface UserSubscription {
@@ -58,19 +39,21 @@ export async function getUserSubscription(userId: string): Promise<UserSubscript
   }
 
   try {
-    const sql = getSql()
-    const result = (await sql`
-      SELECT * FROM user_subscriptions 
-      WHERE user_id = ${userId}
-      LIMIT 1
-    `) as unknown as UserSubscription[]
-    return result[0] || null
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .single()
+
+    if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      throw error
+    }
+
+    return data || null
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    if (!hasLoggedDbConfigWarning) {
-      console.warn(`Failed to load subscription; treating as free plan (${message})`)
-      hasLoggedDbConfigWarning = true
-    }
+    console.warn(`Failed to load subscription; treating as free plan (${message})`)
     return null
   }
 }
@@ -80,12 +63,22 @@ export async function createFreeSubscription(userId: string): Promise<UserSubscr
     throw new Error("Database not configured")
   }
 
-  const result = (await getSql()`
-    INSERT INTO user_subscriptions (user_id, plan_type, status)
-    VALUES (${userId}, 'free', 'active')
-    RETURNING *
-  `) as unknown as UserSubscription[]
-  return result[0]
+  const supabase = getSupabaseClient()
+  const { data, error } = await supabase
+    .from('user_subscriptions')
+    .insert({
+      user_id: userId,
+      plan_type: 'free',
+      status: 'active'
+    })
+    .select()
+    .single()
+
+  if (error) {
+    throw error
+  }
+
+  return data
 }
 
 export async function getSubscriptionWithStripeData(userId: string) {
@@ -116,6 +109,57 @@ export async function getSubscriptionWithStripeData(userId: string) {
   }
 }
 
+export async function upgradeToPremium(userId: string): Promise<UserSubscription> {
+  if (!isDatabaseAvailable()) {
+    throw new Error("Database not configured")
+  }
+
+  // Get current subscription
+  const currentSubscription = await getUserSubscription(userId)
+
+  if (!currentSubscription) {
+    // For demo purposes, create a premium subscription directly
+    // In a real app, you'd ensure the user exists first
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .insert({
+        user_id: userId,
+        plan_type: 'premium',
+        status: 'active'
+      })
+      .select()
+      .single()
+
+    if (error) {
+      // If foreign key constraint fails, try upsert (this might work if the table allows it)
+      console.warn('Insert failed, trying upsert approach:', error.message)
+      throw new Error('User does not exist. Please sign up first.')
+    }
+
+    return data
+  } else {
+    // Update existing subscription to premium
+    const supabase = getSupabaseClient()
+    const { data, error } = await supabase
+      .from('user_subscriptions')
+      .update({
+        plan_type: 'premium',
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', userId)
+      .select()
+      .single()
+
+    if (error) {
+      throw error
+    }
+
+    return data
+  }
+}
+
 export async function cancelSubscription(userId: string) {
   if (!isDatabaseAvailable()) {
     throw new Error("Database not configured")
@@ -132,9 +176,16 @@ export async function cancelSubscription(userId: string) {
 
   await stripe!.subscriptions.cancel(subscription.stripe_subscription_id)
 
-  await getSql()`
-    UPDATE user_subscriptions 
-    SET status = 'cancelled', updated_at = NOW()
-    WHERE user_id = ${userId}
-  `
+  const supabase = getSupabaseClient()
+  const { error } = await supabase
+    .from('user_subscriptions')
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString()
+    })
+    .eq('user_id', userId)
+
+  if (error) {
+    throw error
+  }
 }

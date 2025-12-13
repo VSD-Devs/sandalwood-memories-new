@@ -3,6 +3,23 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Frutiger Font Faces */
+@font-face {
+  font-family: 'Frutiger';
+  src: url('/fonts/Frutiger.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Frutiger';
+  src: url('/fonts/Frutiger_bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #f4f6fb;
   --foreground: #0f172a;
@@ -121,8 +138,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   /* Added custom font family definitions */
-  --font-serif: var(--font-merriweather);
-  --font-sans: var(--font-merriweather);
+  --font-serif: 'Frutiger', ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-sans: 'Frutiger', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 @layer base {
@@ -131,7 +148,9 @@
   }
   body {
     @apply bg-memorial-bg text-foreground;
-    font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-family: 'Frutiger', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 18px; /* Increased from default 16px for better accessibility */
+    line-height: 1.6; /* Improved line height for readability */
     background-image:
       radial-gradient(circle at 20% 20%, rgba(27, 59, 95, 0.08), transparent 35%),
       radial-gradient(circle at 78% 14%, rgba(67, 90, 139, 0.08), transparent 32%),
@@ -140,7 +159,12 @@
     background-attachment: fixed;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-serif), ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+    font-family: 'Frutiger', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.3; /* Tighter line height for headings */
+  }
+  /* Improve readability for smaller text */
+  small, .text-xs, .text-sm {
+    line-height: 1.5;
   }
 }
 
@@ -151,5 +175,42 @@
   }
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
+  }
+  
+  /* Mobile touch optimizations */
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Mobile-specific improvements */
+@layer base {
+  /* Improve touch targets and remove tap highlights */
+  button, a, [role="button"], [role="tab"] {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  
+  /* Prevent text selection on mobile for better UX */
+  @media (max-width: 768px) {
+    button, [role="button"], [role="tab"] {
+      -webkit-user-select: none;
+      user-select: none;
+    }
+  }
+  
+  /* Improve scrolling on mobile */
+  @media (max-width: 768px) {
+    html {
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
+    }
+    
+    /* Prevent horizontal scroll on mobile */
+    body {
+      overflow-x: hidden;
+      position: relative;
+    }
   }
 }

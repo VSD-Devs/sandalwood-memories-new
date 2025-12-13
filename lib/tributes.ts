@@ -13,6 +13,7 @@ export interface Tribute {
   status?: TributeStatus
   created_at: string
   updated_at?: string
+  // Temporarily optional until schema migration
   ip_address?: string
   user_agent?: string
 }
@@ -22,29 +23,32 @@ export interface TributeCreateData {
   author_name: string
   author_email?: string
   message: string
-  ip_address?: string
-  user_agent?: string
+  // Temporarily disabled until schema migration
+  // ip_address?: string
+  // user_agent?: string
 }
 
 /**
- * Ensure the tribute object always carries both boolean and string status fields.
- * This makes the API consistent even if the database schema differs between
- * environments (e.g. `status` text vs `is_approved` boolean).
+ * Ensure the tribute object always carries the status field.
  */
 function normalizeTribute(tribute: any): Tribute {
-  const derivedStatus: TributeStatus =
-    tribute?.status ||
-    (tribute?.is_approved === false ? 'pending' : 'approved')
+  // If status is present, use it.
+  // If only is_approved is present (legacy), map it to status.
+  // Default to pending.
+  let derivedStatus: TributeStatus = 'pending';
 
-  const derivedIsApproved =
-    typeof tribute?.is_approved === 'boolean'
-      ? tribute.is_approved
-      : derivedStatus === 'approved'
+  if (tribute?.status) {
+    derivedStatus = tribute.status;
+  } else if (typeof tribute?.is_approved === 'boolean') {
+    derivedStatus = tribute.is_approved ? 'approved' : 'pending';
+  }
 
   return {
     ...tribute,
     status: derivedStatus,
-    is_approved: derivedIsApproved,
+    is_approved: derivedStatus === 'approved', // Keep for backward compatibility if needed
+    ip_address: tribute?.ip_address || undefined,
+    user_agent: tribute?.user_agent || undefined,
   }
 }
 
@@ -52,57 +56,29 @@ function normalizeTribute(tribute: any): Tribute {
  * Create a new tribute
  */
 export async function createTribute(data: TributeCreateData): Promise<Tribute> {
-  const basePayload = {
+  const payload: any = {
     memorial_id: data.memorial_id,
     author_name: data.author_name,
     author_email: data.author_email || null,
     message: data.message,
+    is_approved: true, // Auto-approve by default as requested
   }
 
-  const moderationPayload = {
-    status: 'approved' as TributeStatus,
-    is_approved: true, // backward compatibility with earlier schema
+  // Temporarily skip ip_address and user_agent until schema is updated
+  // if (data.ip_address) payload.ip_address = data.ip_address
+  // if (data.user_agent) payload.user_agent = data.user_agent
+
+  const { data: tribute, error } = await supabase
+    .from('tributes')
+    .insert(payload)
+    .select()
+    .single()
+
+  if (error) {
+    throw new Error(`Failed to create tribute: ${error.message}`)
   }
 
-  // Only attach optional fields if provided to avoid schema mismatches
-  const optionalPayload: Record<string, string | null> = {}
-  if (data.ip_address) optionalPayload.ip_address = data.ip_address
-  if (data.user_agent) optionalPayload.user_agent = data.user_agent
-
-  const payloadVariants: Array<Record<string, any>> = [
-    { ...basePayload, ...optionalPayload, ...moderationPayload },
-    { ...basePayload, ...moderationPayload },
-    { ...basePayload },
-  ]
-
-  let lastError: any = null
-
-  for (const payload of payloadVariants) {
-    const { data: tribute, error } = await supabase
-      .from('tributes')
-      .insert(payload)
-      .select()
-      .single()
-
-    if (!error && tribute) {
-      return normalizeTribute(tribute)
-    }
-
-    lastError = error
-
-    // Only retry on missing-column style errors; anything else should surface immediately
-    const message = error?.message?.toLowerCase?.() || ''
-    const looksLikeSchemaGap =
-      message.includes('schema cache') ||
-      message.includes('does not exist') ||
-      message.includes('column')
-
-    if (!looksLikeSchemaGap) {
-      break
-    }
-  }
-
-  throw new Error(`Failed to create tribute: ${lastError?.message || 'Unknown error'}`)
+  return normalizeTribute(tribute)
 }
 
 /**
@@ -125,6 +101,7 @@ export async function getTributes(
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
+  // Apply approval filter - use is_approved for legacy compatibility
   if (!include_pending) {
     query = query.eq('is_approved', true)
   }
@@ -164,13 +141,15 @@ export async function getTributesForOwner(
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  // Apply status filter
+  // Apply status filter - use is_approved for legacy compatibility
   if (status === 'approved') {
     query = query.eq('is_approved', true)
   } else if (status === 'pending') {
     query = query.eq('is_approved', false)
+  } else if (status === 'rejected') {
+    query = query.eq('is_approved', false) // For now, treat rejected as not approved
   }
-  // 'all' or 'rejected' means no additional filter needed for now
+  // 'all' means no additional filter needed
 
   const { data: tributes, error } = await query
 

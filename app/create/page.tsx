@@ -18,7 +18,6 @@ import { useAuth } from "@/contexts/auth-context"
 import { checkUsageLimits } from "@/lib/usage-limits"
 import UsageLimitModal from "@/components/usage-limit-modal"
 import { useRouter } from "next/navigation"
-import { MediaProcessor } from "@/lib/media-processing"
 
 interface MemorialData {
   name: string
@@ -619,14 +618,31 @@ export default function CreateMemorialPage() {
                       const file = e.target.files?.[0]
                       if (!file) return
                       try {
-                        const processed = await MediaProcessor.processImage(file)
-                        const blob = await fetch(processed.url).then((r) => r.blob())
-                        const reader = new FileReader()
-                        reader.onloadend = () => {
-                          const dataUrl = reader.result as string
+                        // Simple client-side image processing for preview
+                        const canvas = document.createElement("canvas")
+                        const ctx = canvas.getContext("2d")
+                        const img = new Image()
+
+                        img.onload = () => {
+                          // Resize for preview (max 400px)
+                          const maxSize = 400
+                          let { width, height } = img
+
+                          if (width > maxSize || height > maxSize) {
+                            const ratio = Math.min(maxSize / width, maxSize / height)
+                            width *= ratio
+                            height *= ratio
+                          }
+
+                          canvas.width = width
+                          canvas.height = height
+                          ctx?.drawImage(img, 0, 0, width, height)
+
+                          const dataUrl = canvas.toDataURL("image/jpeg", 0.8)
                           handleInputChange("profileImage", dataUrl)
                         }
-                        reader.readAsDataURL(blob)
+
+                        img.src = URL.createObjectURL(file)
                       } catch (err) {
                         console.error("Failed to process profile image", err)
                       } finally {

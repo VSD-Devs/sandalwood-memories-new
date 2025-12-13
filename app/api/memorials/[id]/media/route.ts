@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server"
 import { supabase } from "@/lib/database"
-import { updateMemorialUsage } from "@/lib/usage-limits"
+import { updateMemorialUsage, checkUsageLimits } from "@/lib/usage-limits"
 import { getAuthenticatedUser } from "@/lib/auth-helpers"
 import { getMemorialAccess } from "@/lib/memorial-access"
 
@@ -103,6 +103,28 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       return NextResponse.json({ error: "No items provided" }, { status: 400 })
     }
 
+    // Server-side usage limit validation
+    const photoCount = items.filter(item => item.file_type === "image").length
+    const videoCount = items.filter(item => item.file_type === "video").length
+
+    // Create mock File objects for the usage check with estimated sizes
+    const mockFiles = [
+      ...Array(photoCount).fill(null).map(() => ({ type: "image/jpeg", size: 2 * 1024 * 1024 } as File)), // 2MB average for images
+      ...Array(videoCount).fill(null).map(() => ({ type: "video/mp4", size: 50 * 1024 * 1024 } as File)) // 50MB average for videos
+    ]
+
+    const limitCheck = await checkUsageLimits(user.id, "upload_media", {
+      files: mockFiles,
+      memorialId: id,
+    })
+
+    if (!limitCheck.allowed) {
+      return NextResponse.json({
+        error: limitCheck.message || "Usage limit exceeded",
+        upgradeRequired: limitCheck.upgradeRequired
+      }, { status: 403 })
+    }
+
     // Basic validation: accept only images for now when URL is a data URL
     const sanitized = items.map((it) => ({
       file_url: String(it.file_url || "").trim(),
@@ -138,6 +160,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       try {
         const memorialOwner = await getMemorialOwner(id)
         if (memorialOwner) {
+          // Always recalculate from scratch to ensure accuracy
           const mediaCounts = await getMemorialMediaCounts(id)
           await updateMemorialUsage(memorialOwner, id, {
             mediaCount: mediaCounts.media_count,
@@ -147,7 +170,8 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
         }
       } catch (error) {
         console.error("Failed to update memorial usage statistics:", error)
-        // Don't fail the media upload if usage update fails
+        // Log the error but don't fail the upload - this prevents the paywall issue
+        // from breaking legitimate uploads
       }
     }
 

@@ -22,10 +22,11 @@ interface TributeListProps {
   memorialId: string
   isOwner?: boolean
   className?: string
-  onTributeDeleted?: () => void
+  onTributeDeleted?: (tributeId: string) => void
+  tributes?: Tribute[] // Optional prop to pass tributes directly
 }
 
-export default function TributeList({ memorialId, isOwner = false, className = "", onTributeDeleted }: TributeListProps) {
+export default function TributeList({ memorialId, isOwner = false, className = "", onTributeDeleted, tributes: externalTributes }: TributeListProps) {
   const [tributes, setTributes] = useState<Tribute[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -34,21 +35,21 @@ export default function TributeList({ memorialId, isOwner = false, className = "
     try {
       setLoading(true)
       setError(null)
-      
+
       const params = new URLSearchParams()
       if (isOwner) {
         params.set("include_pending", "1")
       }
-      
+
       const response = await fetch(`/api/memorials/${memorialId}/tributes?${params}`)
-      
+
       if (!response.ok) {
         throw new Error("Failed to load tributes")
       }
-      
+
       const data = await response.json()
       setTributes(data)
-      
+
     } catch (err) {
       console.error("Fetch tributes error:", err)
       setError(err instanceof Error ? err.message : "Failed to load tributes")
@@ -57,9 +58,16 @@ export default function TributeList({ memorialId, isOwner = false, className = "
     }
   }
 
+  // Use external tributes if provided, otherwise fetch
   useEffect(() => {
-    fetchTributes()
-  }, [memorialId, isOwner])
+    if (externalTributes !== undefined) {
+      setTributes(externalTributes)
+      setLoading(false)
+      setError(null)
+    } else {
+      fetchTributes()
+    }
+  }, [memorialId, isOwner, externalTributes])
 
   const deleteTribute = async (tributeId: string) => {
     try {
@@ -67,10 +75,10 @@ export default function TributeList({ memorialId, isOwner = false, className = "
         method: 'DELETE',
         credentials: 'include',
       })
-      
+
       if (response.ok) {
         setTributes(prev => prev.filter(t => t.id !== tributeId))
-        onTributeDeleted?.()
+        onTributeDeleted?.(tributeId)
       } else {
         console.error('Failed to delete tribute')
       }
@@ -134,20 +142,20 @@ export default function TributeList({ memorialId, isOwner = false, className = "
 
   return (
     <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-serif">
-          <MessageSquare className="h-5 w-5 text-rose-600" />
+      <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4">
+        <CardTitle className="flex items-center gap-2 font-serif text-lg md:text-xl">
+          <MessageSquare className="h-4 w-4 md:h-5 md:w-5 text-rose-600" />
           Tributes & Messages
           {approvedTributes.length > 0 && (
-            <Badge variant="secondary">{approvedTributes.length}</Badge>
+            <Badge variant="secondary" className="text-xs">{approvedTributes.length}</Badge>
           )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 md:space-y-4 px-4 md:px-6 pb-4 md:pb-6">
         {/* Pending tributes (only visible to owners) */}
         {isOwner && pendingTributes.length > 0 && (
           <div className="space-y-3">
-            <h3 className="font-medium text-amber-700 border-b border-amber-200 pb-2">
+            <h3 className="font-medium text-amber-700 border-b border-amber-200 pb-2 text-sm md:text-base">
               Pending Review ({pendingTributes.length})
             </h3>
             {pendingTributes.map((tribute) => (
@@ -160,7 +168,7 @@ export default function TributeList({ memorialId, isOwner = false, className = "
         {approvedTributes.length > 0 ? (
           <div className="space-y-3">
             {isOwner && pendingTributes.length > 0 && (
-              <h3 className="font-medium text-green-700 border-b border-green-200 pb-2">
+              <h3 className="font-medium text-green-700 border-b border-green-200 pb-2 text-sm md:text-base">
                 Published ({approvedTributes.length})
               </h3>
             )}
@@ -169,10 +177,10 @@ export default function TributeList({ memorialId, isOwner = false, className = "
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>No tributes have been shared yet.</p>
-            <p className="text-sm">Be the first to leave a message of remembrance.</p>
+          <div className="text-center py-6 md:py-8 text-muted-foreground">
+            <MessageSquare className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-3 md:mb-4 opacity-50" />
+            <p className="text-sm md:text-base">No tributes have been shared yet.</p>
+            <p className="text-xs md:text-sm mt-1">Be the first to leave a message of remembrance.</p>
           </div>
         )}
       </CardContent>
@@ -182,21 +190,16 @@ export default function TributeList({ memorialId, isOwner = false, className = "
 
 function TributeCard({ tribute, isOwner, onDelete }: { tribute: Tribute; isOwner: boolean; onDelete?: (id: string) => void }) {
   return (
-    <div className="border rounded-lg p-4 bg-white shadow-sm">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <User className="h-4 w-4 text-muted-foreground" />
-          <span className="font-medium">{tribute.author_name}</span>
-          {isOwner && (
-            <Badge className={getStatusColor(tribute.status)}>
-              {tribute.status}
-            </Badge>
-          )}
+    <div className="border rounded-lg p-3 md:p-4 bg-white shadow-sm">
+      <div className="flex items-start justify-between mb-2 md:mb-3 gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+          <span className="font-medium text-sm md:text-base truncate">{tribute.author_name}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Calendar className="h-3 w-3" />
-            <time dateTime={tribute.created_at}>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 text-xs md:text-sm text-muted-foreground">
+            <Calendar className="h-3 w-3 flex-shrink-0" />
+            <time dateTime={tribute.created_at} className="whitespace-nowrap">
               {format(new Date(tribute.created_at), "MMM d, yyyy")}
             </time>
           </div>
@@ -205,15 +208,16 @@ function TributeCard({ tribute, isOwner, onDelete }: { tribute: Tribute; isOwner
               variant="ghost"
               size="sm"
               onClick={() => onDelete(tribute.id)}
-              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50"
+              className="h-9 w-9 md:h-8 md:w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 touch-manipulation"
+              aria-label="Delete tribute"
             >
-              <Trash2 className="h-3 w-3" />
+              <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
             </Button>
           )}
         </div>
       </div>
       
-      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+      <p className="text-gray-700 leading-relaxed whitespace-pre-wrap text-sm md:text-base">
         {tribute.message}
       </p>
     </div>

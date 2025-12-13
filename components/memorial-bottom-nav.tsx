@@ -35,13 +35,17 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
   }
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-border shadow-lg">
       <div className="mx-auto max-w-6xl">
         <nav
           aria-label="Memorial navigation"
           role="tablist"
-          className="grid grid-cols-3 h-16"
-          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+          className="grid grid-cols-3"
+          style={{ 
+            height: "calc(4rem + env(safe-area-inset-bottom, 0px))",
+            paddingBottom: "env(safe-area-inset-bottom, 0px)",
+            minHeight: "4rem"
+          }}
         >
           {navItems.map((item) => (
             <button
@@ -49,7 +53,7 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
               type="button"
               onClick={() => handleTabClick(item.id as "timeline" | "gallery" | "tributes")}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                "flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 touch-manipulation min-h-[44px]",
                 activeTab === item.id
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -61,10 +65,10 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
               aria-selected={activeTab === item.id}
             >
               <item.icon className={cn(
-                "h-5 w-5 transition-all",
+                "h-6 w-6 md:h-5 md:w-5 transition-all",
                 activeTab === item.id ? "scale-110" : ""
               )} />
-              <span>{item.label}</span>
+              <span className="text-xs md:text-xs">{item.label}</span>
             </button>
           ))}
         </nav>

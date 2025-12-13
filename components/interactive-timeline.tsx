@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import { ChevronLeft, ChevronRight, Star, Heart, Award, Baby, Sparkles, Plus, Calendar, Upload, ImageIcon, Video, FileText, Link, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAuth } from "@/contexts/auth-context"
+import { useToast } from "@/hooks/use-toast"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
@@ -69,6 +69,7 @@ const typeColors = {
 
 export function InteractiveTimeline({ events, media, canEdit = false, memorialId, onEventsChange, onMediaUpload, externalModalOpen = false, onExternalModalClose }: InteractiveTimelineProps) {
   const { user } = useAuth()
+  const { toast } = useToast()
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState(0)
   const timelineRef = useRef<HTMLDivElement>(null)
@@ -76,15 +77,12 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
   // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  // Handle external modal control
+  // Handle external modal control - only set when opening externally, not when closing internally
   useEffect(() => {
-    if (externalModalOpen !== isModalOpen) {
-      setIsModalOpen(externalModalOpen)
-      if (!externalModalOpen && onExternalModalClose) {
-        onExternalModalClose()
-      }
+    if (externalModalOpen && !isModalOpen) {
+      setIsModalOpen(true)
     }
-  }, [externalModalOpen, isModalOpen, onExternalModalClose])
+  }, [externalModalOpen, isModalOpen])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState({
     title: "",
@@ -102,79 +100,6 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
   const [youtubeUrl, setYoutubeUrl] = useState("")
   const [mediaUploadMode, setMediaUploadMode] = useState<"select" | "upload" | "youtube">("select")
 
-  // Transform events to include year and image
-  const transformedEvents = events
-    .map((event) => {
-      const year = event.event_date ? new Date(event.event_date).getFullYear() : null
-      if (!year || isNaN(year)) return null
-
-      // Find image from media
-      let image: string | undefined
-      if (event.media_id) {
-        const mediaItem = media.find((m) => m.id === event.media_id && m.file_type === "image")
-        if (mediaItem) {
-          image = mediaItem.file_url
-        }
-      }
-      // If no primary media, check gallery
-      if (!image && event.gallery_media_ids && event.gallery_media_ids.length > 0) {
-        const galleryMedia = media.find(
-          (m) => event.gallery_media_ids?.includes(m.id) && m.file_type === "image"
-        )
-        if (galleryMedia) {
-          image = galleryMedia.file_url
-        }
-      }
-
-      return {
-        id: event.id,
-        year,
-        title: event.title,
-        description: event.description || "",
-        type: categoryToType[event.category] || "milestone",
-        image,
-      }
-    })
-    .filter((e): e is NonNullable<typeof e> => e !== null)
-    .sort((a, b) => a.year - b.year)
-
-  if (transformedEvents.length === 0) {
-    return (
-      <div className="py-24 text-center bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-xl">
-        <p className="text-slate-600 text-xl font-light mb-2">No timeline events yet.</p>
-        <p className="text-slate-500 text-base">Memories will appear here as they're added.</p>
-      </div>
-    )
-  }
-
-  const activeEvent = transformedEvents[activeIndex]
-  const Icon = typeIcons[activeEvent.type]
-
-  const goToEvent = (index: number) => {
-    if (index < 0 || index >= transformedEvents.length) return
-    setDirection(index > activeIndex ? 1 : -1)
-    setActiveIndex(index)
-  }
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "ArrowRight") goToEvent(activeIndex + 1)
-      if (e.key === "ArrowLeft") goToEvent(activeIndex - 1)
-    }
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [activeIndex, transformedEvents.length])
-
-  // Scroll active year marker into view
-  useEffect(() => {
-    if (timelineRef.current) {
-      const activeMarker = timelineRef.current.querySelector(`[data-index="${activeIndex}"]`)
-      if (activeMarker) {
-        activeMarker.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
-      }
-    }
-  }, [activeIndex])
-
   // Helper functions for modal
   const resetForm = () => {
     setForm({
@@ -189,6 +114,219 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
     setMediaPreviews([])
     setYoutubeUrl("")
     setMediaUploadMode("select")
+  }
+
+  const handleSubmit = async () => {
+    if (!form.title.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title for this memory.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!form.date || !form.date.trim()) {
+      toast({
+        title: "Date required",
+        description: "Please select a date for this memory.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    // Validate YouTube URL if provided
+    if (mediaUploadMode === "youtube" && youtubeUrl.trim() && !isYouTubeUrl(youtubeUrl.trim())) {
+      toast({
+        title: "Invalid YouTube URL",
+        description: "Please enter a valid YouTube URL.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    if (!memorialId) {
+      toast({
+        title: "Error",
+        description: "Memorial ID is required.",
+        variant: "destructive"
+      })
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      let finalMediaId = form.selectedMediaId
+      let galleryIds = [...form.galleryMediaIds]
+
+      const pushGalleryId = (id: string | null | undefined) => {
+        if (!id) return
+        galleryIds.push(id)
+        if (!finalMediaId) {
+          finalMediaId = id
+        }
+      }
+
+      // Handle direct media upload
+      if (mediaUploadMode === "upload" && mediaFiles.length > 0) {
+        setUploadingMedia(true)
+        try {
+          for (const file of mediaFiles) {
+            const formData = new FormData()
+            formData.append('file', file)
+            formData.append('title', `Timeline: ${form.title}`)
+            formData.append('description', form.description || '')
+
+            const uploadResponse = await fetch(`/api/memorials/${memorialId}/media/upload`, {
+              method: 'POST',
+              body: formData,
+            })
+
+            if (!uploadResponse.ok) {
+              throw new Error('Failed to upload media')
+            }
+
+            const uploadData = await uploadResponse.json()
+            const fileUrl = uploadData.items?.[0]?.file_url || uploadData.file_url || uploadData.url
+
+            if (!fileUrl) continue
+
+            const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                items: [{
+                  file_url: fileUrl,
+                  file_type: file.type.startsWith('image/') ? 'image' : 'video',
+                  title: `Timeline: ${form.title}`,
+                  description: form.description || null,
+                  uploaded_by: user?.id || null
+                }]
+              })
+            })
+
+            if (mediaResponse.ok) {
+              const savedMedia = await mediaResponse.json()
+              const newMediaItem = savedMedia.items?.[0]
+              if (newMediaItem) {
+                pushGalleryId(newMediaItem.id)
+                onMediaUpload?.(newMediaItem)
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Media upload failed:', error)
+          toast({
+            title: "Failed to upload media",
+            description: "Please try again later.",
+            variant: "destructive"
+          })
+          return
+        } finally {
+          setUploadingMedia(false)
+        }
+      }
+
+      // Handle YouTube URL upload
+      else if (mediaUploadMode === "youtube" && youtubeUrl.trim()) {
+        try {
+          // Save YouTube URL to media database
+          const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              items: [{
+                file_url: youtubeUrl.trim(),
+                file_type: 'video',
+                title: `Timeline: ${form.title}`,
+                description: form.description || null,
+                uploaded_by: user?.id || null
+              }]
+            })
+          })
+
+          if (mediaResponse.ok) {
+            const savedMedia = await mediaResponse.json()
+            const newMediaItem = savedMedia.items?.[0]
+            if (newMediaItem) {
+              pushGalleryId(newMediaItem.id)
+              onMediaUpload?.(newMediaItem)
+            }
+          }
+        } catch (error) {
+          console.error('YouTube URL save failed:', error)
+          toast({
+            title: "Failed to save YouTube video",
+            description: "Please try again later.",
+            variant: "destructive"
+          })
+          return
+        }
+      }
+
+      // If user selected existing items and no cover set, use first
+      if (!finalMediaId && galleryIds.length > 0) {
+        finalMediaId = galleryIds[0]
+      }
+
+      // Deduplicate gallery and ensure cover included
+      galleryIds = Array.from(new Set([...(finalMediaId ? [finalMediaId] : []), ...galleryIds]))
+
+      // Create new timeline event
+      const requestData = {
+        title: form.title.trim(),
+        description: form.description.trim() || null,
+        event_date: form.date.trim(),
+        category: form.category,
+        media_id: finalMediaId || null,
+        gallery_media_ids: galleryIds,
+      }
+
+      const response = await fetch(`/api/memorials/${memorialId}/timeline`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(requestData)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to create timeline event')
+      }
+
+      const newEvent = await response.json()
+
+      // Update events list with the complete event object from API and sort chronologically
+      const updatedEvents = [...events, newEvent].sort((a, b) => {
+        const dateA = a.event_date ? new Date(a.event_date).getTime() : 0
+        const dateB = b.event_date ? new Date(b.event_date).getTime() : 0
+        return dateA - dateB
+      })
+      onEventsChange?.(updatedEvents)
+
+      // Show success message
+      toast({
+        title: "Memory added successfully",
+        description: "Your memory has been added to the timeline.",
+      })
+
+      resetForm()
+
+      // Small delay to let user see success message before closing modal
+      setTimeout(() => {
+        setIsModalOpen(false)
+      }, 1500)
+
+    } catch (error) {
+      console.error(`Failed to create timeline event:`, error)
+      toast({
+        title: "Failed to add memory",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const toggleGallerySelection = (mediaId: string) => {
@@ -260,248 +398,131 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
     return youtubeRegex.test(url)
   }
 
-  const handleSubmit = async () => {
-    if (!form.title.trim()) {
-      alert('Please enter a title')
-      return
-    }
+  // Transform events to include year and image
+  const transformedEvents = events
+    .map((event) => {
+      const year = event.event_date ? new Date(event.event_date).getFullYear() : null
+      if (!year || isNaN(year)) return null
 
-    if (!form.date || !form.date.trim()) {
-      alert('Please select a date')
-      return
-    }
-
-    // Validate YouTube URL if provided
-    if (mediaUploadMode === "youtube" && youtubeUrl.trim() && !isYouTubeUrl(youtubeUrl.trim())) {
-      alert('Please enter a valid YouTube URL')
-      return
-    }
-
-    if (!memorialId) {
-      alert('Memorial ID is required')
-      return
-    }
-
-    try {
-      setIsSubmitting(true)
-      let finalMediaId = form.selectedMediaId
-      let galleryIds = [...form.galleryMediaIds]
-
-      const pushGalleryId = (id: string | null | undefined) => {
-        if (!id) return
-        galleryIds.push(id)
-        if (!finalMediaId) {
-          finalMediaId = id
+      // Find image from media
+      let image: string | undefined
+      if (event.media_id) {
+        const mediaItem = media.find((m) => m.id === event.media_id && m.file_type === "image")
+        if (mediaItem) {
+          image = mediaItem.file_url
+        }
+      }
+      // If no primary media, check gallery
+      if (!image && event.gallery_media_ids && event.gallery_media_ids.length > 0) {
+        const galleryMedia = media.find(
+          (m) => event.gallery_media_ids?.includes(m.id) && m.file_type === "image"
+        )
+        if (galleryMedia) {
+          image = galleryMedia.file_url
         }
       }
 
-      // Handle direct media upload
-      if (mediaUploadMode === "upload" && mediaFiles.length > 0) {
-        setUploadingMedia(true)
-        try {
-          for (const file of mediaFiles) {
-            const formData = new FormData()
-            formData.append('file', file)
-            formData.append('title', `Timeline: ${form.title}`)
-            formData.append('description', form.description || '')
-
-            const uploadResponse = await fetch(`/api/memorials/${memorialId}/media/upload`, {
-              method: 'POST',
-              body: formData,
-            })
-
-            if (!uploadResponse.ok) {
-              throw new Error('Failed to upload media')
-            }
-
-            const uploadData = await uploadResponse.json()
-            const fileUrl = uploadData.items?.[0]?.file_url || uploadData.file_url || uploadData.url
-
-            if (!fileUrl) continue
-
-            const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                items: [{
-                  file_url: fileUrl,
-                  file_type: file.type.startsWith('image/') ? 'image' : 'video',
-                  title: `Timeline: ${form.title}`,
-                  description: form.description || null,
-                  uploaded_by: user?.id || null
-                }]
-              })
-            })
-
-            if (mediaResponse.ok) {
-              const savedMedia = await mediaResponse.json()
-              const newMediaItem = savedMedia.items?.[0]
-              if (newMediaItem) {
-                pushGalleryId(newMediaItem.id)
-                onMediaUpload?.(newMediaItem)
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Media upload failed:', error)
-          alert('Failed to upload media. Please try again.')
-          return
-        } finally {
-          setUploadingMedia(false)
-        }
+      return {
+        id: event.id,
+        year,
+        title: event.title,
+        description: event.description || "",
+        type: categoryToType[event.category] || "milestone",
+        image,
       }
+    })
+    .filter((e): e is NonNullable<typeof e> => e !== null)
+    .sort((a, b) => a.year - b.year)
 
-      // Handle YouTube URL upload
-      else if (mediaUploadMode === "youtube" && youtubeUrl.trim()) {
-        try {
-          // Save YouTube URL to media database
-          const mediaResponse = await fetch(`/api/memorials/${memorialId}/media`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              items: [{
-                file_url: youtubeUrl.trim(),
-                file_type: 'video',
-                title: `Timeline: ${form.title}`,
-                description: form.description || null,
-                uploaded_by: user?.id || null
-              }]
-            })
-          })
-
-          if (mediaResponse.ok) {
-            const savedMedia = await mediaResponse.json()
-            const newMediaItem = savedMedia.items?.[0]
-            if (newMediaItem) {
-              pushGalleryId(newMediaItem.id)
-              onMediaUpload?.(newMediaItem)
-            }
-          }
-        } catch (error) {
-          console.error('YouTube URL save failed:', error)
-          alert('Failed to save YouTube video. Please try again.')
-          return
-        }
-      }
-
-      // If user selected existing items and no cover set, use first
-      if (!finalMediaId && galleryIds.length > 0) {
-        finalMediaId = galleryIds[0]
-      }
-
-      // Deduplicate gallery and ensure cover included
-      galleryIds = Array.from(new Set([...(finalMediaId ? [finalMediaId] : []), ...galleryIds]))
-
-      // Create new timeline event
-      const requestData = {
-        title: form.title.trim(),
-        description: form.description.trim() || null,
-        event_date: form.date.trim(),
-        category: form.category,
-        media_id: finalMediaId || null,
-        gallery_media_ids: galleryIds,
-      }
-
-      const response = await fetch(`/api/memorials/${memorialId}/timeline`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(requestData)
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.error || 'Failed to create timeline event')
-      }
-
-      const newEvent = await response.json()
-
-      // Update events list with the complete event object from API and sort chronologically
-      const updatedEvents = [...events, newEvent].sort((a, b) => {
-        const dateA = a.event_date ? new Date(a.event_date).getTime() : 0
-        const dateB = b.event_date ? new Date(b.event_date).getTime() : 0
-        return dateA - dateB
-      })
-      onEventsChange?.(updatedEvents)
-
-      resetForm()
-      setIsModalOpen(false)
-
-    } catch (error) {
-      console.error(`Failed to create timeline event:`, error)
-      alert(`Failed to create timeline event. Please try again.`)
-    } finally {
-      setIsSubmitting(false)
-    }
+  if (transformedEvents.length === 0) {
+    return (
+      <div className="w-full">
+      <div className="py-24 text-center bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-xl">
+        <p className="text-slate-600 text-xl font-light mb-2">No timeline events yet.</p>
+          <p className="text-slate-500 text-base mb-8">Memories will appear here as they're added.</p>
+          {canEdit && (
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-12 px-6"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Add First Memory
+            </Button>
+          )}
+        </div>
+      </div>
+    )
   }
 
-  const variants = {
-    enter: (direction: number) => ({
-      x: direction > 0 ? 300 : -300,
-      opacity: 0,
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-    },
-    exit: (direction: number) => ({
-      x: direction < 0 ? 300 : -300,
-      opacity: 0,
-    }),
+  const activeEvent = transformedEvents[activeIndex]
+  const Icon = typeIcons[activeEvent.type]
+
+  const goToEvent = (index: number) => {
+    if (index < 0 || index >= transformedEvents.length) return
+    setDirection(index > activeIndex ? 1 : -1)
+    setActiveIndex(index)
   }
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowRight") goToEvent(activeIndex + 1)
+      if (e.key === "ArrowLeft") goToEvent(activeIndex - 1)
+    }
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [activeIndex, transformedEvents.length])
+
+  // Scroll active year marker into view
+  useEffect(() => {
+    if (timelineRef.current) {
+      const activeMarker = timelineRef.current.querySelector(`[data-index="${activeIndex}"]`)
+      if (activeMarker) {
+        activeMarker.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" })
+      }
+    }
+  }, [activeIndex])
+
 
   return (
     <div className="w-full">
       {/* Year Navigation Bar */}
-      <div className="relative mb-16">
-        <div ref={timelineRef} className="flex items-center gap-3 overflow-x-auto pb-8 scrollbar-hide px-4 -mx-4">
-          <div className="flex items-center gap-3 mx-auto">
+      <div className="relative mb-6 md:mb-10">
+        <div ref={timelineRef} className="flex items-center gap-2 md:gap-3 overflow-x-auto pb-6 md:pb-8 scrollbar-hide px-4 -mx-4">
+          <div className="flex items-center gap-2 md:gap-3 mx-auto">
             {transformedEvents.map((event, index) => (
               <button
                 key={event.id}
                 data-index={index}
                 onClick={() => goToEvent(index)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center px-6 py-3.5 rounded-2xl min-w-[90px] font-medium",
+                  "relative flex flex-col items-center justify-center px-3 md:px-4 lg:px-6 py-2 md:py-3 lg:py-3.5 rounded-xl md:rounded-2xl min-w-[70px] md:min-w-[80px] lg:min-w-[90px] font-medium",
                   index === activeIndex
                     ? "bg-[#1B3B5F] text-white shadow-lg"
                     : "text-slate-700 bg-white/80 border border-slate-200/60 hover:bg-white hover:shadow-md",
                 )}
               >
-                <span className="text-lg font-semibold">{event.year}</span>
-                {index === activeIndex && (
-                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#1B3B5F] shadow-lg" />
-                )}
+                <span className="text-sm md:text-base lg:text-lg font-semibold">{event.year}</span>
               </button>
             ))}
           </div>
         </div>
         {/* Progress Bar */}
         <div className="absolute bottom-0 left-0 right-0 h-2 bg-slate-200/50 rounded-full overflow-hidden shadow-inner">
-          <motion.div
-            className="h-full bg-[#1B3B5F] rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${((activeIndex + 1) / transformedEvents.length) * 100}%` }}
-            transition={{ duration: 0.2, ease: "easeOut" }}
+          <div
+            className="h-full bg-[#1B3B5F] rounded-full transition-all duration-200 ease-out"
+            style={{ width: `${((activeIndex + 1) / transformedEvents.length) * 100}%` }}
           />
         </div>
       </div>
 
       {/* Main Content Card */}
-      <div className="relative min-h-[600px] md:min-h-[550px] mb-16">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={activeIndex}
-            custom={direction}
-            variants={variants}
-            initial="enter"
-            animate="center"
-            exit="exit"
-            transition={{ duration: 0.3, ease: "easeOut" }}
-            className="absolute inset-0"
-          >
-            <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/60 shadow-2xl p-8 md:p-12 lg:p-16">
-              <div className="grid gap-10 md:gap-12 lg:gap-16 md:grid-cols-2 items-center">
+      <div className="relative min-h-[500px] md:min-h-[450px] mb-8 md:mb-12">
+        <div
+          key={activeIndex}
+          className="transition-opacity duration-200 ease-in-out"
+        >
+            <div className="bg-white/90 backdrop-blur-md rounded-2xl md:rounded-3xl border border-slate-200/60 shadow-2xl p-4 md:p-6 lg:p-8">
+              <div className="grid gap-4 md:gap-6 lg:gap-8 md:grid-cols-[1fr_1.2fr] items-center">
                 {/* Image */}
                 <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-gradient-to-br from-slate-100 to-slate-200 shadow-xl ring-2 ring-white/60 group">
                   {activeEvent.image ? (
@@ -536,55 +557,54 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                 </div>
 
                 {/* Content */}
-                <div className="flex flex-col space-y-8">
+                <div className="flex flex-col space-y-4 md:space-y-6">
                   <div>
-                    <span className="text-7xl md:text-8xl lg:text-9xl font-serif font-light text-[#1B3B5F]/80 leading-none tracking-tight">
+                    <span className="text-3xl md:text-4xl lg:text-5xl font-serif font-light text-[#1B3B5F]/80 leading-none tracking-tight">
                       {activeEvent.year}
                     </span>
                   </div>
-                  <div className="space-y-4">
-                    <h3 className="font-serif text-3xl md:text-4xl lg:text-5xl text-slate-900 font-light leading-tight">
+                  <div className="space-y-3 md:space-y-4">
+                    <h3 className="font-serif text-lg md:text-2xl lg:text-3xl text-slate-900 font-light leading-tight">
                       {activeEvent.title}
                     </h3>
                     {activeEvent.description && (
-                      <p className="text-lg md:text-xl lg:text-2xl leading-relaxed text-slate-600 font-light">
+                      <p className="text-sm md:text-base lg:text-lg leading-relaxed text-slate-600 font-light">
                         {activeEvent.description}
                       </p>
                     )}
                   </div>
 
                   {/* Navigation Buttons */}
-                  <div className="flex items-center gap-4 pt-4">
+                  <div className="flex items-center gap-3 md:gap-4 pt-3 md:pt-4">
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => goToEvent(activeIndex - 1)}
                       disabled={activeIndex === 0}
-                      className="h-14 w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-10 w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <ChevronLeft className="h-6 w-6" />
+                      <ChevronLeft className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6" />
                     </Button>
                     <div className="flex-1 text-center">
-                      <div className="text-sm font-semibold text-slate-700">
+                      <div className="text-xs md:text-sm font-semibold text-slate-700">
                         {activeIndex + 1} of {transformedEvents.length}
                       </div>
-                      <div className="text-xs text-slate-500 mt-1">Use arrow keys to navigate</div>
+                      <div className="text-xs text-slate-500 mt-0.5 md:mt-1 hidden md:block">Use arrow keys to navigate</div>
                     </div>
                     <Button
                       variant="outline"
                       size="icon"
                       onClick={() => goToEvent(activeIndex + 1)}
                       disabled={activeIndex === transformedEvents.length - 1}
-                      className="h-14 w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-10 w-10 md:h-12 md:w-12 lg:h-14 lg:w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <ChevronRight className="h-6 w-6" />
+                      <ChevronRight className="h-4 w-4 md:h-5 md:w-5 lg:h-6 lg:w-6" />
                     </Button>
                   </div>
                 </div>
               </div>
             </div>
-          </motion.div>
-        </AnimatePresence>
+        </div>
       </div>
 
       {/* Timeline Dots */}
@@ -611,14 +631,14 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
           onExternalModalClose()
         }
       }}>
-        <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="font-serif text-3xl font-semibold text-slate-900">
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
+          <DialogHeader className="pb-4 md:pb-6">
+            <DialogTitle className="font-serif text-xl md:text-2xl lg:text-3xl font-semibold text-slate-900">
               Add a Memory
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-8">
+          <div className="space-y-6 md:space-y-8">
             {/* Title Field */}
             <div className="space-y-3">
               <Label htmlFor="title" className="text-base font-semibold text-slate-900">
@@ -692,35 +712,35 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
               </Label>
 
               {/* Media Mode Selection */}
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 md:gap-3">
                 <Button
                   type="button"
                   variant={mediaUploadMode === "select" ? "default" : "outline"}
-                  size="lg"
+                  size="sm"
                   onClick={() => setMediaUploadMode("select")}
-                  className="h-12 px-6 text-base"
+                  className="h-10 md:h-12 px-4 md:px-6 text-sm md:text-base"
                 >
-                  <ImageIcon className="h-5 w-5 mr-2" />
+                  <ImageIcon className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2" />
                   Choose existing
                 </Button>
                 <Button
                   type="button"
                   variant={mediaUploadMode === "upload" ? "default" : "outline"}
-                  size="lg"
+                  size="sm"
                   onClick={() => setMediaUploadMode("upload")}
-                  className="h-12 px-6 text-base"
+                  className="h-10 md:h-12 px-4 md:px-6 text-sm md:text-base"
                 >
-                  <Upload className="h-5 w-5 mr-2" />
+                  <Upload className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2" />
                   Upload new
                 </Button>
                 <Button
                   type="button"
                   variant={mediaUploadMode === "youtube" ? "default" : "outline"}
-                  size="lg"
+                  size="sm"
                   onClick={() => setMediaUploadMode("youtube")}
-                  className="h-12 px-6 text-base"
+                  className="h-10 md:h-12 px-4 md:px-6 text-sm md:text-base"
                 >
-                  <Link className="h-5 w-5 mr-2" />
+                  <Link className="h-4 w-4 md:h-5 md:w-5 mr-1.5 md:mr-2" />
                   YouTube link
                 </Button>
               </div>
@@ -859,7 +879,7 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-200">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -867,16 +887,16 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                   setIsModalOpen(false)
                 }}
                 disabled={isSubmitting}
-                size="lg"
-                className="h-12 px-8 text-base"
+                size="sm"
+                className="h-10 md:h-12 px-6 md:px-8 text-sm md:text-base"
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !form.title.trim() || !form.date || !form.date.trim()}
-                size="lg"
-                className="h-12 px-8 text-base bg-[#1B3B5F] hover:bg-[#1B3B5F]/90"
+                size="sm"
+                className="h-10 md:h-12 px-6 md:px-8 text-sm md:text-base bg-[#1B3B5F] hover:bg-[#1B3B5F]/90"
               >
                 {isSubmitting
                   ? uploadingMedia

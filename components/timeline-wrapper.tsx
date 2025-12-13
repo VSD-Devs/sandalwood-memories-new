@@ -86,15 +86,6 @@ export default function TimelineWrapper({ memorialId, canEdit = false, media = [
 
   // Always show interactive timeline - it handles empty state
 
-  // If no events and can't edit, show empty state
-  if (events.length === 0) {
-    return (
-      <div className="py-24 text-center bg-white/60 backdrop-blur-sm rounded-3xl border border-slate-200/50 shadow-xl">
-        <p className="text-slate-600 text-xl font-light mb-2">No timeline events yet.</p>
-        <p className="text-slate-500 text-base">Memories will appear here as they're added.</p>
-      </div>
-    )
-  }
 
 
   // Otherwise show interactive timeline

@@ -743,26 +743,26 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
     return (
       <div 
         key={event.id} 
-        className={`flex ${isLeft ? 'justify-start' : 'justify-end'} mb-12 md:mb-16`}
+        className={`flex ${isLeft ? 'justify-start' : 'justify-end'} mb-8 md:mb-16`}
       >
         <div className={`w-full md:w-[45%] max-w-lg ${isLeft ? 'md:pr-8' : 'md:pl-8'} group`}>
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {eventDate && (
-              <p className="text-sm font-semibold text-blue-800 mb-1">
+              <p className="text-xs md:text-sm font-semibold text-blue-800 mb-1">
                 {eventDate}
               </p>
             )}
-            <h5 className="font-serif text-xl md:text-2xl font-semibold text-slate-900 leading-tight group-hover:text-blue-700 transition-colors">
+            <h5 className="font-serif text-lg md:text-xl lg:text-2xl font-semibold text-slate-900 leading-tight group-hover:text-blue-700 transition-colors">
               {event.title}
             </h5>
             {event.description && (
-              <p className="text-slate-600 leading-relaxed text-[15px] md:text-base">
-                {isExpanded ? event.description : truncateText(event.description, 300)}
+              <p className="text-slate-600 leading-relaxed text-sm md:text-[15px] lg:text-base">
+                {isExpanded ? event.description : truncateText(event.description, 200)}
               </p>
             )}
             
             {isExpanded && (
-              <div className="mt-4">
+              <div className="mt-3 md:mt-4">
                 <TimelineEventMedia
                   eventId={event.id}
                   eventTitle={event.title}
@@ -777,12 +777,12 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             )}
 
             {canEdit && (
-              <div className="flex items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2 mt-3 md:mt-4 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex-wrap">
                 <Button
                   size="sm"
                   variant="ghost"
                   onClick={() => toggleEventDetails(event.id)}
-                  className="text-blue-600 hover:text-blue-700 h-8 text-xs"
+                  className="text-blue-600 hover:text-blue-700 h-9 md:h-8 text-xs touch-manipulation"
                 >
                   {isExpanded ? "Hide details" : "View details"}
                 </Button>
@@ -790,7 +790,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                   size="sm"
                   variant="ghost"
                   onClick={() => handleEditEvent(event)}
-                  className="text-blue-600 hover:text-blue-700 h-8 text-xs"
+                  className="text-blue-600 hover:text-blue-700 h-9 md:h-8 text-xs touch-manipulation"
                 >
                   <Edit className="h-3 w-3 mr-1" aria-hidden />
                   Edit
@@ -799,7 +799,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                   size="sm"
                   variant="ghost"
                   onClick={() => handleDeleteEvent(event.id)}
-                  className="text-red-600 hover:text-red-700 h-8 text-xs"
+                  className="text-red-600 hover:text-red-700 h-9 md:h-8 text-xs touch-manipulation"
                 >
                   <Trash2 className="h-3 w-3 mr-1" aria-hidden />
                   Delete
@@ -813,12 +813,12 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
   }
 
   return (
-    <div className="w-full">
-      <div className="mb-12">
-        <div className="flex items-center justify-between mb-8">
+      <div className="w-full">
+      <div className="mb-8 md:mb-12">
+        <div className="flex items-center justify-between mb-6 md:mb-8">
           <div>
-            <h2 className="font-serif text-2xl md:text-3xl text-slate-900 mb-2">Life remembered</h2>
-            <p className="text-blue-600 text-sm">
+            <h2 className="font-serif text-xl md:text-2xl lg:text-3xl text-slate-900 mb-1 md:mb-2">Life remembered</h2>
+            <p className="text-blue-600 text-xs md:text-sm">
               {filteredAndPaginatedEvents.totalUnfiltered} {filteredAndPaginatedEvents.totalUnfiltered === 1 ? 'memory' : 'memories'}
               {availableYears.length > 0 && ` · ${availableYears.length} ${availableYears.length === 1 ? 'year' : 'years'}`}
             </p>
@@ -826,14 +826,14 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
         </div>
 
         {(searchQuery || categoryFilter !== "all" || yearFilter !== "all") && (
-          <div className="mb-8 flex items-center gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px] max-w-md">
+          <div className="mb-6 md:mb-8 flex items-center gap-2 md:gap-3 flex-wrap">
+            <div className="relative flex-1 min-w-[180px] max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" aria-hidden />
               <Input
                 placeholder="Search memories..."
                 value={searchQuery}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-10 border-slate-300"
+                className="pl-10 border-slate-300 h-10 md:h-10 text-base"
               />
             </div>
             {(categoryFilter !== "all" || yearFilter !== "all" || searchQuery) && (
@@ -841,7 +841,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                 variant="ghost"
                 size="sm"
                 onClick={handleClearFilters}
-                className="text-slate-600 hover:text-slate-900"
+                className="text-slate-600 hover:text-slate-900 h-10 md:h-9 touch-manipulation"
               >
                 <X className="h-4 w-4 mr-1" />
                 Clear filters
@@ -875,19 +875,19 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
 
 
         {hasVisibleEvents && (
-          <div className="relative rounded-2xl bg-gradient-to-b from-blue-50/50 via-white to-blue-50/30 px-4 py-8 md:px-8 md:py-12 border border-blue-100/50">
-            {/* Vertical timeline line */}
+          <div className="relative rounded-xl md:rounded-2xl bg-gradient-to-b from-blue-50/50 via-white to-blue-50/30 px-3 py-6 md:px-8 md:py-12 border border-blue-100/50">
+            {/* Vertical timeline line - hidden on mobile */}
             <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-px bg-blue-300/60 -translate-x-1/2 z-0" aria-hidden />
             
             {groupedEvents.map((group, groupIndex) => (
-              <div key={group.year} className="relative mb-24 md:mb-32 last:mb-0">
+              <div key={group.year} className="relative mb-16 md:mb-32 last:mb-0">
                 {/* Year separator - only show if not the first year */}
                 {groupIndex > 0 && (
-                  <div className="relative mb-16 md:mb-20 mt-8 md:mt-12">
+                  <div className="relative mb-12 md:mb-20 mt-6 md:mt-12">
                     <div className="absolute left-1/2 -translate-x-1/2 w-full flex items-center z-10">
                       <div className="flex-1 h-px bg-gradient-to-r from-transparent via-blue-300/60 to-transparent"></div>
-                      <div className="mx-4 px-4 py-1.5 bg-white rounded-full border border-blue-200/60 shadow-sm">
-                        <span className="text-sm font-semibold text-blue-700 whitespace-nowrap">
+                      <div className="mx-2 md:mx-4 px-3 md:px-4 py-1 md:py-1.5 bg-white rounded-full border border-blue-200/60 shadow-sm">
+                        <span className="text-xs md:text-sm font-semibold text-blue-700 whitespace-nowrap">
                           {group.year}
                         </span>
                       </div>
@@ -898,13 +898,13 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                 
                 {/* Year in background */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full pointer-events-none z-0">
-                  <div className="text-[120px] md:text-[180px] lg:text-[240px] font-bold text-blue-200/40 leading-none tracking-tight text-center select-none">
+                  <div className="text-[80px] md:text-[180px] lg:text-[240px] font-bold text-blue-200/30 md:text-blue-200/40 leading-none tracking-tight text-center select-none">
                     {group.year}
                   </div>
                 </div>
                 
                 {/* Events container */}
-                <div className="relative z-10 pt-8 md:pt-16">
+                <div className="relative z-10 pt-6 md:pt-16">
                   {group.items.map((event, eventIndex) => {
                     // Alternate left/right for each event using global index across all years
                     const globalIndex = groupedEvents.slice(0, groupIndex).reduce((acc, g) => acc + g.items.length, 0) + eventIndex
@@ -913,68 +913,38 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                     return (
                       <div key={event.id} className="relative">
                         {renderEventCard(event, globalIndex, isLeft)}
-                        {/* Add prompt between events - Desktop */}
+                        {/* Add prompt between events */}
                         {canEdit && !isLastInGroup && (
-                          <>
-                            <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-full mt-6 mb-6 justify-center z-20">
-                              <button
-                                onClick={() => {
-                                  resetForm()
-                                  setIsModalOpen(true)
-                                }}
-                                className="group relative flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-blue-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110"
-                                aria-label="Add memory"
-                              >
-                                <Plus className="h-5 w-5 text-blue-600 group-hover:text-blue-700 transition-colors" />
-                              </button>
-                            </div>
-                            {/* Mobile add prompt */}
-                            <div className="md:hidden flex justify-center mt-6 mb-6">
-                              <button
-                                onClick={() => {
-                                  resetForm()
-                                  setIsModalOpen(true)
-                                }}
-                                className="flex items-center justify-center w-10 h-10 rounded-full bg-white border-2 border-blue-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all duration-200"
-                                aria-label="Add memory"
-                              >
-                                <Plus className="h-5 w-5 text-blue-600" />
-                              </button>
-                            </div>
-                          </>
+                          <div className="flex justify-center md:absolute md:left-1/2 md:-translate-x-1/2 top-full mt-4 mb-4 md:mt-6 md:mb-6 z-20">
+                            <button
+                              onClick={() => {
+                                resetForm()
+                                setIsModalOpen(true)
+                              }}
+                              className="flex items-center justify-center w-11 h-11 md:w-10 md:h-10 rounded-full bg-white border-2 border-blue-300 hover:border-blue-500 shadow-sm hover:shadow-md transition-all duration-200 hover:scale-110 touch-manipulation"
+                              aria-label="Add memory"
+                            >
+                              <Plus className="h-5 w-5 text-blue-600 hover:text-blue-700 transition-colors" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     )
                   })}
                   {/* Add prompt at end of year group */}
                   {canEdit && group.items.length > 0 && (
-                    <>
-                      <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-full mt-8 justify-center z-20">
-                        <button
-                          onClick={() => {
-                            resetForm()
-                            setIsModalOpen(true)
-                          }}
-                          className="group relative flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110"
-                          aria-label="Add memory"
-                        >
-                          <Plus className="h-6 w-6 text-blue-600 group-hover:text-blue-700 transition-colors" />
-                        </button>
-                      </div>
-                      {/* Mobile add prompt at end of year */}
-                      <div className="md:hidden flex justify-center mt-8 mb-4">
-                        <button
-                          onClick={() => {
-                            resetForm()
-                            setIsModalOpen(true)
-                          }}
-                          className="flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200"
-                          aria-label="Add memory"
-                        >
-                          <Plus className="h-6 w-6 text-blue-600" />
-                        </button>
-                      </div>
-                    </>
+                    <div className="flex justify-center md:absolute md:left-1/2 md:-translate-x-1/2 top-full mt-6 md:mt-8 mb-4 z-20">
+                      <button
+                        onClick={() => {
+                          resetForm()
+                          setIsModalOpen(true)
+                        }}
+                        className="flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200 hover:scale-110 touch-manipulation"
+                        aria-label="Add memory"
+                      >
+                        <Plus className="h-6 w-6 text-blue-600 hover:text-blue-700 transition-colors" />
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -996,30 +966,17 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
 
         {/* Add prompt at end of timeline */}
         {canEdit && hasVisibleEvents && (
-          <div className="relative mt-12 md:mt-16">
-            <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 top-0 justify-center z-20">
+          <div className="relative mt-8 md:mt-16">
+            <div className="flex justify-center md:absolute md:left-1/2 md:-translate-x-1/2 top-0 z-20 pt-6 md:pt-0">
               <button
                 onClick={() => {
                   resetForm()
                   setIsModalOpen(true)
                 }}
-                className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-white border-2 border-blue-500 hover:border-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"
+                className="flex items-center justify-center w-12 h-12 md:w-14 md:h-14 rounded-full bg-white border-2 border-blue-500 hover:border-blue-700 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 touch-manipulation"
                 aria-label="Add another memory"
               >
-                <Plus className="h-7 w-7 text-blue-600 group-hover:text-blue-700 transition-colors" />
-              </button>
-            </div>
-            {/* Mobile add button */}
-            <div className="md:hidden flex justify-center pt-8">
-              <button
-                onClick={() => {
-                  resetForm()
-                  setIsModalOpen(true)
-                }}
-                className="flex items-center justify-center w-12 h-12 rounded-full bg-white border-2 border-blue-400 hover:border-blue-600 shadow-md hover:shadow-lg transition-all duration-200"
-                aria-label="Add another memory"
-              >
-                <Plus className="h-6 w-6 text-blue-600" />
+                <Plus className="h-6 w-6 md:h-7 md:w-7 text-blue-600 hover:text-blue-700 transition-colors" />
               </button>
             </div>
           </div>
@@ -1029,17 +986,17 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
 
       {/* Add Event Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
-          <DialogHeader className="pb-6">
-            <DialogTitle className="font-serif text-3xl font-semibold text-slate-900">
+        <DialogContent className="max-w-6xl w-full h-full md:h-auto md:max-h-[90vh] overflow-y-auto top-0 md:top-[52%] rounded-none md:rounded-lg p-4 md:p-6">
+          <DialogHeader className="pb-4 md:pb-6">
+            <DialogTitle className="font-serif text-2xl md:text-3xl font-semibold text-slate-900">
               {editingEvent ? "Edit Memory" : "Add a Memory"}
             </DialogTitle>
           </DialogHeader>
           
-          <div className="space-y-8">
+          <div className="space-y-6 md:space-y-8">
             {/* Title Field */}
-            <div className="space-y-3">
-              <Label htmlFor="title" className="text-base font-semibold text-slate-900">
+            <div className="space-y-2 md:space-y-3">
+              <Label htmlFor="title" className="text-sm md:text-base font-semibold text-slate-900">
                 What happened?
               </Label>
               <Input
@@ -1052,9 +1009,9 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             </div>
             
             {/* Date and Category */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3">
-                <Label htmlFor="date" className="text-base font-semibold text-slate-900">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              <div className="space-y-2 md:space-y-3">
+                <Label htmlFor="date" className="text-sm md:text-base font-semibold text-slate-900">
                   When did this happen? <span className="text-red-600">*</span>
                 </Label>
                 <Input
@@ -1067,8 +1024,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                 />
               </div>
               
-              <div className="space-y-3">
-                <Label htmlFor="category" className="text-base font-semibold text-slate-900">
+              <div className="space-y-2 md:space-y-3">
+                <Label htmlFor="category" className="text-sm md:text-base font-semibold text-slate-900">
                   Type of memory
                 </Label>
                 <Select 
@@ -1090,8 +1047,8 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             </div>
             
             {/* Description */}
-            <div className="space-y-3">
-              <Label htmlFor="description" className="text-base font-semibold text-slate-900">
+            <div className="space-y-2 md:space-y-3">
+              <Label htmlFor="description" className="text-sm md:text-base font-semibold text-slate-900">
                 Tell us about this memory <span className="text-slate-500 font-normal">(optional)</span>
               </Label>
               <Textarea
@@ -1278,7 +1235,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
             </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-200">
               <Button
                 variant="outline"
                 onClick={() => {
@@ -1287,7 +1244,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                 }}
                 disabled={isSubmitting}
                 size="lg"
-                className="h-12 px-8 text-base"
+                className="h-12 px-6 md:px-8 text-base touch-manipulation w-full sm:w-auto"
               >
                 Cancel
               </Button>
@@ -1295,7 +1252,7 @@ export default function Timeline({ memorialId, events, media, canEdit = false, o
                 onClick={handleSubmit}
                 disabled={isSubmitting || !form.title.trim() || !form.date || !form.date.trim()}
                 size="lg"
-                className="h-12 px-8 text-base bg-[#1B3B5F] hover:bg-[#1B3B5F]/90"
+                className="h-12 px-6 md:px-8 text-base bg-[#1B3B5F] hover:bg-[#1B3B5F]/90 touch-manipulation w-full sm:w-auto"
               >
                 {isSubmitting 
                   ? uploadingMedia 

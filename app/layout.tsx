@@ -1,5 +1,4 @@
 import type React from "react"
-import { Merriweather } from "next/font/google"
 import "./globals.css"
 import { AuthProvider } from "@/contexts/auth-context"
 import { AppStateProvider } from "@/contexts/app-state"
@@ -9,13 +8,6 @@ import Footer from "@/components/footer"
 import PublicHeader from "@/components/public-header"
 import Script from "next/script"
 import { buildMetadata, siteName, siteUrl } from "@/lib/seo"
-
-const merriweather = Merriweather({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  display: "swap",
-  variable: "--font-merriweather",
-})
 
 export const metadata = buildMetadata({
   title: "Digital memorial platform",
@@ -64,7 +56,7 @@ export default function RootLayout({
   }
 
   return (
-    <html lang="en-GB" className={`${merriweather.variable} antialiased`}>
+    <html lang="en-GB" className="antialiased">
       <body className="font-sans" suppressHydrationWarning>
         <Script id="structured-data" type="application/ld+json" strategy="afterInteractive">
           {JSON.stringify(structuredData)}

@@ -61,6 +61,7 @@ export interface Tribute {
   author_name: string
   author_email: string | null
   message: string
+  status: 'pending' | 'approved' | 'rejected'
   is_approved: boolean
   created_at: string
   updated_at?: string
@@ -226,18 +227,30 @@ export async function getTributes(limit = 50, offset = 0) {
     return []
   }
 
-  return data?.map(tribute => ({
-    ...tribute,
-    memorial_title: tribute.memorials?.title || '',
-    full_name: tribute.memorials?.full_name || '',
-    memorials: undefined // Remove the nested memorials object
-  })) as (Tribute & { memorial_title: string; full_name: string })[]
+  return data?.map(tribute => {
+    // Derive status/is_approved
+    const status = tribute.status || (tribute.is_approved ? 'approved' : 'pending')
+    const is_approved = status === 'approved'
+
+    return {
+      ...tribute,
+      status,
+      is_approved,
+      memorial_title: tribute.memorials?.title || '',
+      full_name: tribute.memorials?.full_name || '',
+      memorials: undefined // Remove the nested memorials object
+    }
+  }) as (Tribute & { memorial_title: string; full_name: string })[]
 }
 
 export async function approveTribute(id: string) {
   const { error } = await supabase
     .from('tributes')
-    .update({ is_approved: true, updated_at: new Date().toISOString() })
+    .update({ 
+      status: 'approved',
+      // is_approved: true, // Legacy
+      updated_at: new Date().toISOString() 
+    })
     .eq('id', id)
 
   if (error) {
@@ -248,7 +261,11 @@ export async function approveTribute(id: string) {
 export async function rejectTribute(id: string) {
   const { error } = await supabase
     .from('tributes')
-    .update({ is_approved: false, updated_at: new Date().toISOString() })
+    .update({ 
+      status: 'rejected',
+      // is_approved: false, // Legacy
+      updated_at: new Date().toISOString() 
+    })
     .eq('id', id)
 
   if (error) {
@@ -272,7 +289,7 @@ export async function getDashboardStats() {
   const [memorialStats, userStats, tributeStats] = await Promise.all([
     supabase.from('memorials').select('status'),
     supabase.from('users').select('id', { count: 'exact', head: true }),
-    supabase.from('tributes').select('is_approved'),
+    supabase.from('tributes').select('status, is_approved'),
   ])
 
   // Process memorial stats
@@ -289,10 +306,15 @@ export async function getDashboardStats() {
   const tributeCounts = { approved: 0, pending: 0, rejected: 0 }
   if (tributeStats.data) {
     tributeStats.data.forEach((row: any) => {
-      if (row.is_approved === true) {
+      let status = row.status
+      if (!status && typeof row.is_approved === 'boolean') {
+        status = row.is_approved ? 'approved' : 'pending' // treat legacy false as pending or rejected? default to pending for safety
+      }
+      
+      if (status === 'approved') {
         tributeCounts.approved++
-      } else if (row.is_approved === false) {
-        tributeCounts.rejected++ // Assuming false means rejected, but this might need adjustment
+      } else if (status === 'rejected') {
+        tributeCounts.rejected++
       } else {
         tributeCounts.pending++
       }

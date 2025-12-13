@@ -94,18 +94,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }, { status: 400 })
     }
 
-    // Get client information for spam prevention
-    const ip_address = getClientIP(request)
-    const user_agent = request.headers.get("user-agent") || undefined
+    // Get client information for spam prevention (temporarily disabled)
+    // const ip_address = getClientIP(request)
+    // const user_agent = request.headers.get("user-agent") || undefined
 
     // Create the tribute
     const tribute = await createTribute({
       memorial_id: id,
       author_name: author_name.trim(),
       author_email: author_email?.trim() || undefined,
-      message: message.trim(),
-      ip_address,
-      user_agent
+      message: message.trim()
+      // ip_address,
+      // user_agent
     })
 
     return NextResponse.json({

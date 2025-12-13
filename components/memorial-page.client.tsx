@@ -297,31 +297,26 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
 
     setIsCoverImageUploading(true)
     try {
-      // Process and compress the image
-      const { MediaProcessor } = await import("@/lib/media-processing")
-      const processed = await MediaProcessor.processImage(file)
-
-      // Convert data URL to blob for upload
-      const response = await fetch(processed.url)
-      const blob = await response.blob()
-
-      // Upload to blob storage
+      // Upload directly to server-side processing API
       const formData = new FormData()
-      formData.append("file", blob, file.name)
-      formData.append("uploaded_by", user?.id || "")
+      formData.append("file", file)
+      formData.append("type", "image")
+      formData.append("userId", user?.id || "")
+      formData.append("memorialId", memorial.id)
 
-      const uploadResponse = await fetch(`/api/memorials/${memorial.id}/media/upload`, {
+      const uploadResponse = await fetch("/api/media/process", {
         method: "POST",
         body: formData,
         credentials: "include",
       })
 
       if (!uploadResponse.ok) {
-        throw new Error("Upload failed")
+        const errorData = await uploadResponse.json()
+        throw new Error(errorData.error || "Upload failed")
       }
 
       const uploadData = await uploadResponse.json()
-      const coverImageUrl = uploadData.items?.[0]?.file_url || uploadData.file_url
+      const coverImageUrl = uploadData.item?.file_url
 
       if (!coverImageUrl) {
         throw new Error("No file URL returned")
@@ -957,8 +952,6 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                       if (res.ok) {
                         const data = await res.json()
                         setTributes(Array.isArray(data) ? data : [])
-                        // Trigger refresh in TributeList by updating key
-                        setTributeRefreshKey(prev => prev + 1)
                       }
                     } catch (error) {
                       console.error('Failed to refresh tributes:', error)
@@ -970,23 +963,12 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
 
             {/* Tribute List */}
             <TributeList
-              key={`tribute-list-${tributeRefreshKey}`}
               memorialId={memorial?.id || identifier}
               isOwner={memorial?.isOwner || user?.id === memorial?.created_by}
-              onTributeDeleted={async () => {
-                // Refresh tributes list
-                if (memorial?.id) {
-                  try {
-                    const res = await fetch(`/api/memorials/${memorial.id}/tributes`, { credentials: 'include' })
-                    if (res.ok) {
-                      const data = await res.json()
-                      setTributes(Array.isArray(data) ? data : [])
-                      setTributeRefreshKey(prev => prev + 1)
-                    }
-                  } catch (error) {
-                    console.error('Failed to refresh tributes:', error)
-                  }
-                }
+              tributes={tributes}
+              onTributeDeleted={async (tributeId: string) => {
+                // Remove tribute from local state immediately
+                setTributes(prev => prev.filter(t => t.id !== tributeId))
               }}
             />
           </div>
@@ -1364,7 +1346,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                     }
                   }}
                   disabled={isSubmittingTribute}
-                className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-12 px-8 text-base"
+                className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-12 px-6 md:px-8 text-base touch-manipulation w-full sm:w-auto"
                 >
                   {isSubmittingTribute ? (
                     <>
@@ -1380,7 +1362,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                 </Button>
               </div>
               
-            <p className="text-base text-slate-600 text-center">
+            <p className="text-sm md:text-base text-slate-600 text-center">
                 Your tribute will appear immediately on the memorial page.
               </p>
             </div>
@@ -1393,24 +1375,24 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
             <DialogTitle className="font-serif text-2xl md:text-3xl font-semibold pb-4 md:pb-6">
             Edit life story
             </DialogTitle>
-            <div className="space-y-6">
-              <div className="space-y-3">
-                <Label htmlFor="biography-edit" className="text-base font-semibold">Biography</Label>
+            <div className="space-y-4 md:space-y-6">
+              <div className="space-y-2 md:space-y-3">
+                <Label htmlFor="biography-edit" className="text-sm md:text-base font-semibold">Biography</Label>
                 <Textarea
                   id="biography-edit"
                   value={biographyForm.biography}
                   onChange={(e) => setBiographyForm(prev => ({ ...prev, biography: e.target.value }))}
                   placeholder="Share their life story, achievements, personality, and what made them special..."
                   rows={12}
-                  className="min-h-[400px] text-base resize-none"
+                  className="min-h-[300px] md:min-h-[400px] text-base resize-none"
                 />
-              <p className="text-base text-slate-600">
+              <p className="text-sm md:text-base text-slate-600">
                   Take your time to capture their essence and unique story.
                 </p>
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200">
-                <Button size="lg" variant="outline" onClick={() => setIsBiographyEditOpen(false)} className="h-12 px-8 text-base">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-200">
+                <Button size="lg" variant="outline" onClick={() => setIsBiographyEditOpen(false)} className="h-12 px-6 md:px-8 text-base touch-manipulation w-full sm:w-auto">
                   Cancel
                 </Button>
                 <Button size="lg" onClick={async () => {
@@ -1431,7 +1413,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                   } catch (error) {
                     console.error('Failed to update biography:', error)
                   }
-                }} className="h-12 px-8 text-base bg-[#1B3B5F] hover:bg-[#16304d] text-white">
+                }} className="h-12 px-6 md:px-8 text-base bg-[#1B3B5F] hover:bg-[#16304d] text-white touch-manipulation w-full sm:w-auto">
                   <Edit className="h-5 w-5 mr-2" />
                 Save changes
                 </Button>

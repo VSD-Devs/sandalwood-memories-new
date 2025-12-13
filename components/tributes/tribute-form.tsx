@@ -123,61 +123,61 @@ export default function TributeForm({ memorialId, onSuccess }: TributeFormProps)
 
   return (
     <Card className="w-full max-w-2xl">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-serif">
-          <Heart className="h-5 w-5 text-rose-600" />
+      <CardHeader className="px-4 md:px-6 pt-4 md:pt-6 pb-3 md:pb-4">
+        <CardTitle className="flex items-center gap-2 font-serif text-lg md:text-xl">
+          <Heart className="h-4 w-4 md:h-5 md:w-5 text-rose-600" />
           Leave a Tribute
         </CardTitle>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <CardContent className="px-4 md:px-6 pb-4 md:pb-6">
+        <form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
             <div className="space-y-2">
-              <Label htmlFor="author_name">Your Name *</Label>
+              <Label htmlFor="author_name" className="text-sm md:text-base">Your Name *</Label>
               <Input
                 id="author_name"
                 type="text"
                 placeholder="Enter your full name"
                 value={formData.author_name}
                 onChange={(e) => handleInputChange("author_name", e.target.value)}
-                className={errors.author_name ? "border-red-500" : ""}
+                className={`h-12 text-base ${errors.author_name ? "border-red-500" : ""}`}
               />
               {errors.author_name && (
-                <p className="text-sm text-red-600">{errors.author_name}</p>
+                <p className="text-xs md:text-sm text-red-600">{errors.author_name}</p>
               )}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="author_email">Email (optional)</Label>
+              <Label htmlFor="author_email" className="text-sm md:text-base">Email (optional)</Label>
               <Input
                 id="author_email"
                 type="email"
                 placeholder="your@email.com"
                 value={formData.author_email}
                 onChange={(e) => handleInputChange("author_email", e.target.value)}
-                className={errors.author_email ? "border-red-500" : ""}
+                className={`h-12 text-base ${errors.author_email ? "border-red-500" : ""}`}
               />
               {errors.author_email && (
-                <p className="text-sm text-red-600">{errors.author_email}</p>
+                <p className="text-xs md:text-sm text-red-600">{errors.author_email}</p>
               )}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="message">Your Message *</Label>
+            <Label htmlFor="message" className="text-sm md:text-base">Your Message *</Label>
             <Textarea
               id="message"
               placeholder="Share your memories, thoughts, or condolences..."
               value={formData.message}
               onChange={(e) => handleInputChange("message", e.target.value)}
-              className={`min-h-[120px] ${errors.message ? "border-red-500" : ""}`}
+              className={`min-h-[120px] text-base ${errors.message ? "border-red-500" : ""}`}
               maxLength={2000}
             />
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center flex-wrap gap-1">
               {errors.message && (
-                <p className="text-sm text-red-600">{errors.message}</p>
+                <p className="text-xs md:text-sm text-red-600">{errors.message}</p>
               )}
-              <p className="text-sm text-muted-foreground ml-auto">
+              <p className="text-xs md:text-sm text-muted-foreground ml-auto">
                 {formData.message.length}/2000 characters
               </p>
             </div>
@@ -186,7 +186,7 @@ export default function TributeForm({ memorialId, onSuccess }: TributeFormProps)
           <Button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-rose-600 hover:bg-rose-700"
+            className="w-full bg-rose-600 hover:bg-rose-700 h-12 md:h-11 text-base touch-manipulation"
           >
             {isSubmitting ? (
               <>
@@ -198,7 +198,7 @@ export default function TributeForm({ memorialId, onSuccess }: TributeFormProps)
             )}
           </Button>
 
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-xs md:text-sm text-muted-foreground text-center">
             Your tribute will appear immediately on the memorial page.
           </p>
         </form>

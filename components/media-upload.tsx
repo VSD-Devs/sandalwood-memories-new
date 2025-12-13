@@ -163,50 +163,54 @@ export default function MediaUpload({
 
   const uploadFile = async (fileProgress: FileUploadProgress, index: number): Promise<any> => {
     const { file } = fileProgress
-    
+
     try {
       // Update status to uploading
-      setUploadProgress(prev => prev.map((item, i) => 
+      setUploadProgress(prev => prev.map((item, i) =>
         i === index ? { ...item, status: 'uploading', progress: 0 } : item
       ))
 
-      // Create form data
+      // Determine file type
+      const type = file.type.startsWith('image/') ? 'image' : file.type.startsWith('video/') ? 'video' : 'document'
+
+      // Create form data for server-side processing
       const formData = new FormData()
       formData.append('file', file)
-      formData.append('title', uploadData.title)
-      formData.append('description', uploadData.description)
-      formData.append('uploaded_by', user?.id || '')
+      formData.append('type', type)
+      formData.append('userId', user?.id || '')
+      formData.append('memorialId', memorialId?.toString() || '')
 
-      // Upload to server with progress tracking
-      const response = await fetch(`/api/memorials/${memorialId}/media/upload`, {
+      // Upload to server-side processing API
+      const response = await fetch('/api/media/process', {
         method: 'POST',
         body: formData,
       })
 
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`)
+        const errorData = await response.json()
+        throw new Error(errorData.error || `Upload failed: ${response.statusText}`)
       }
 
       const result = await response.json()
-      
+
       // Update progress to 100% and status to success
-      setUploadProgress(prev => prev.map((item, i) => 
-        i === index ? { 
-          ...item, 
-          status: 'success', 
+      setUploadProgress(prev => prev.map((item, i) =>
+        i === index ? {
+          ...item,
+          status: 'success',
           progress: 100,
-          result: result.items?.[0] || result 
+          result: result.item
         } : item
       ))
 
-      return result.items?.[0] || result
+      return result.item
 
     } catch (error) {
       console.error('Upload error:', error)
-      setUploadProgress(prev => prev.map((item, i) => 
-        i === index ? { 
-          ...item, 
-          status: 'error', 
+      setUploadProgress(prev => prev.map((item, i) =>
+        i === index ? {
+          ...item,
+          status: 'error',
           error: error instanceof Error ? error.message : 'Upload failed'
         } : item
       ))
@@ -266,36 +270,21 @@ export default function MediaUpload({
         })
       }
 
-      // Save to database
-      if (allItems.length > 0) {
-        const saveResponse = await fetch(`/api/memorials/${memorialId}/media`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ items: allItems }),
-        })
+      // All items are already saved by the server-side processing API
 
-        if (!saveResponse.ok) {
-          throw new Error('Failed to save media to database')
-        }
-
-        const savedItems = await saveResponse.json()
-        
-        // Call success callback
-        if (onUpload) {
-          onUpload(savedItems.items || allItems)
-        }
-
-        toast.success(`Successfully uploaded ${allItems.length} item${allItems.length > 1 ? 's' : ''}`)
-
-        // Reset form
-        setUploadProgress([])
-        setUploadData({ title: "", description: "", date: "" })
-        setVideoUrl("")
-        setShowUrlInput(false)
-        setIsOpen(false)
+      // Call success callback
+      if (onUpload) {
+        onUpload(allItems)
       }
+
+      toast.success(`Successfully uploaded ${allItems.length} item${allItems.length > 1 ? 's' : ''}`)
+
+      // Reset form
+      setUploadProgress([])
+      setUploadData({ title: "", description: "", date: "" })
+      setVideoUrl("")
+      setShowUrlInput(false)
+      setIsOpen(false)
 
     } catch (error) {
       console.error("Upload error:", error)

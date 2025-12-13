@@ -134,6 +134,38 @@ export async function checkUsageLimits(
   const limits = PLAN_LIMITS[planType]
   const usage = await getUserUsage(userId)
 
+  // For media-related actions, get real-time counts to avoid stale data issues
+  let currentPhotoCount = 0
+  let currentVideoCount = 0
+  let currentMemorialId: string | null = null
+
+  if (action === "upload_media" && data?.memorialId) {
+    currentMemorialId = data.memorialId
+    try {
+      const [{ count: photoCount }, { count: videoCount }] = await Promise.all([
+        supabase
+          .from("media")
+          .select("id", { count: "exact", head: true })
+          .eq("memorial_id", currentMemorialId)
+          .eq("file_type", "image"),
+        supabase
+          .from("media")
+          .select("id", { count: "exact", head: true })
+          .eq("memorial_id", currentMemorialId)
+          .eq("file_type", "video")
+      ])
+
+      currentPhotoCount = photoCount || 0
+      currentVideoCount = videoCount || 0
+    } catch (err) {
+      console.warn("Failed to get real-time media counts:", err)
+      // Fall back to usage table data
+      const memorialUsage = usage.memorialUsage.find((u) => u.memorial_id === currentMemorialId)
+      currentPhotoCount = memorialUsage?.photo_count || 0
+      currentVideoCount = memorialUsage?.video_count || 0
+    }
+  }
+
   switch (action) {
     case "create_memorial":
       if (limits.maxMemorials !== -1 && usage.memorialCount >= limits.maxMemorials) {
@@ -147,9 +179,8 @@ export async function checkUsageLimits(
 
     case "upload_media": {
       const { files, memorialId } = data
+      // Use real-time counts instead of potentially stale usage table data
       const memorialUsage = usage.memorialUsage.find((u) => u.memorial_id === memorialId)
-      const currentPhotoCount = memorialUsage?.photo_count || 0
-      const currentVideoCount = memorialUsage?.video_count || 0
       const currentStorageMB = memorialUsage?.media_size_mb || 0
 
       const photoFiles = files.filter((f: File) => f.type.startsWith("image/"))

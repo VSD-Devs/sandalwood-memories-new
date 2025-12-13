@@ -51,10 +51,10 @@ const pricingTiers = [
       "Priority email support",
       "Advanced sharing options",
     ],
-    cta: "Coming Soon",
+    cta: "Get Premium",
     popular: true,
     planId: "premium",
-    available: false,
+    available: true,
   },
   {
     name: "Fully Managed",
@@ -101,7 +101,35 @@ export default function PricingPage() {
       return
     }
 
-    toast.info("Premium plans coming soon! Contact us for early access.")
+    if (planId === "premium") {
+      // For demo purposes, use a test user ID if no user is signed in
+      const testUserId = "550e8400-e29b-41d4-a716-446655440000"
+      const userId = user?.id || testUserId
+
+      try {
+        const response = await fetch("/api/subscription/upgrade", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          toast.success(data.message || "Successfully upgraded to Premium!")
+          // Redirect to billing page to show updated subscription
+          router.push("/billing")
+        } else {
+          toast.error(data.error || "Failed to upgrade. Please try again.")
+        }
+      } catch (error) {
+        console.error("Upgrade error:", error)
+        toast.error("Failed to upgrade. Please try again.")
+      }
+      return
+    }
+
+    toast.info("This plan is not yet available.")
   }
 
   return (

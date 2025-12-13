@@ -23,13 +23,13 @@ export default function Footer() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/create"
-              className="inline-flex items-center rounded-full bg-[#1B3B5F] px-5 py-3 text-sm font-semibold text-white hover:bg-[#16304d] transition-colors shadow-md shadow-[#1B3B5F]/20"
+              className="inline-flex items-center rounded-full bg-[#1B3B5F] px-6 py-4 text-base font-semibold text-white hover:bg-[#16304d] transition-colors shadow-md shadow-[#1B3B5F]/20"
             >
               Create a memorial
             </Link>
             <Link
               href="/pricing"
-              className="inline-flex items-center rounded-full border-2 border-[#1B3B5F] px-5 py-3 text-sm font-semibold text-[#1B3B5F] hover:bg-[#1B3B5F] hover:text-white transition-colors bg-white/70"
+              className="inline-flex items-center rounded-full border-2 border-[#1B3B5F] px-6 py-4 text-base font-semibold text-[#1B3B5F] hover:bg-[#1B3B5F] hover:text-white transition-colors bg-white/70"
             >
               View plans
             </Link>
@@ -42,7 +42,7 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-slate-800">
               <li>
                 <Link href="/features" className="hover:text-[#1B3B5F] transition-colors">
-                  Features
+                  What we offer
                 </Link>
               </li>
               <li>
@@ -111,9 +111,9 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-[#e8d9c9] pt-6 text-sm text-slate-800 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 border-t border-[#e8d9c9] pt-6 text-base text-slate-800 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Sandalwood Memories. All rights reserved.</p>
-          <div className="flex gap-4 text-sm">
+          <div className="flex gap-4 text-base">
             <Link href="/legal/privacy" className="hover:text-[#1B3B5F] transition-colors">
               Privacy
             </Link>
