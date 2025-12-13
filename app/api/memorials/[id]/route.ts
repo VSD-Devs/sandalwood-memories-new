@@ -8,26 +8,25 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     const { id } = await context.params
     const user = await getAuthenticatedUser(request)
 
-    // Get the memorial with creator info
-    const { data: memorial, error } = await supabase
-      .from('memorials')
-      .select(`
-        *,
-        users (
-          name,
-          email
-        )
-      `)
-      .eq('id', id)
-      .single()
+    // Load memorial and access check in parallel for better performance
+    const [memorialResult, access] = await Promise.all([
+      supabase
+        .from('memorials')
+        .select(`
+          *,
+          users (
+            name,
+            email
+          )
+        `)
+        .eq('id', id)
+        .single(),
+      getMemorialAccess(id, user?.id)
+    ])
 
-    if (error || !memorial) {
-      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
-    }
+    const { data: memorial, error } = memorialResult
 
-    const access = await getMemorialAccess(id, user?.id)
-
-    if (!access) {
+    if (error || !memorial || !access) {
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
@@ -43,7 +42,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       }, { status: 403 })
     }
 
-    // Return the memorial data
+    // Return the memorial data with caching headers
     return NextResponse.json({
       ...memorial,
       creator_name: memorial.users?.name || '',
@@ -53,6 +52,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       canEdit: Boolean(access.isOwner || access.isCollaborator),
       accessStatus: access.accessStatus,
       requestStatus: access.requestStatus
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // Cache for 5 minutes, serve stale for 10 minutes
+      }
     })
 
   } catch (err) {

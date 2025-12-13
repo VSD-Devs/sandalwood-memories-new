@@ -38,7 +38,11 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       offset
     })
 
-    return NextResponse.json(tributes)
+    return NextResponse.json(tributes, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60', // Cache for 30 seconds, serve stale for 1 minute
+      }
+    })
   } catch (err) {
     console.error("Fetch tributes error:", err)
     return NextResponse.json({ error: "Failed to fetch tributes" }, { status: 500 })

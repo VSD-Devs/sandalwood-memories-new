@@ -17,10 +17,15 @@ export async function GET(
     // Check authentication for ownership/collaboration info
     const user = await getAuthenticatedUser(request)
 
-    // Check access first to avoid leaking private details
-    const access = await getMemorialAccessBySlug(slug, user?.id)
+    // Load access check and full memorial data in parallel for better performance
+    // The access check loads core fields, and getMemorialBySlug loads full data
+    // This is still faster than sequential calls
+    const [access, memorial] = await Promise.all([
+      getMemorialAccessBySlug(slug, user?.id),
+      getMemorialBySlug(slug)
+    ])
 
-    if (!access) {
+    if (!access || !memorial) {
       return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
     }
 
@@ -35,13 +40,6 @@ export async function GET(
       }, { status: 403 })
     }
 
-    // Get memorial by slug now that access is confirmed
-    const memorial = await getMemorialBySlug(slug)
-    
-    if (!memorial) {
-      return NextResponse.json({ error: "Memorial not found" }, { status: 404 })
-    }
-
     const responseData = {
       ...memorial,
       isOwner: !!access.isOwner,
@@ -49,7 +47,11 @@ export async function GET(
       requestStatus: access.requestStatus
     }
 
-    return NextResponse.json(responseData)
+    return NextResponse.json(responseData, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600', // Cache for 5 minutes, serve stale for 10 minutes
+      }
+    })
   } catch (err) {
     console.error("Get memorial by slug error:", err)
     const details = (err as any)?.message || String(err)

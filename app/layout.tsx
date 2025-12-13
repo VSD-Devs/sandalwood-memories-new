@@ -6,6 +6,7 @@ import VerifyBanner from "@/components/verify-banner"
 import { Toaster } from "@/components/ui/toaster"
 import Footer from "@/components/footer"
 import PublicHeader from "@/components/public-header"
+import ResourceHints from "@/components/resource-hints"
 import Script from "next/script"
 import { buildMetadata, siteName, siteUrl } from "@/lib/seo"
 
@@ -58,6 +59,7 @@ export default function RootLayout({
   return (
     <html lang="en-GB" className="antialiased">
       <body className="font-sans" suppressHydrationWarning>
+        <ResourceHints />
         <Script id="structured-data" type="application/ld+json" strategy="afterInteractive">
           {JSON.stringify(structuredData)}
         </Script>

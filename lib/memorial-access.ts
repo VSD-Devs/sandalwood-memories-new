@@ -115,8 +115,12 @@ export async function getMemorialAccess(memorialId: string, userId?: string | nu
   if (!memorial) return null
 
   const isOwner = !!userId && String(memorial.created_by) === String(userId)
-  const isCollaborator = await loadCollaboratorFlag(memorial.id, userId)
-  const requestStatus = await loadAccessRequestStatus(memorial.id, userId)
+  
+  // Load collaborator flag and access request status in parallel
+  const [isCollaborator, requestStatus] = await Promise.all([
+    loadCollaboratorFlag(memorial.id, userId),
+    loadAccessRequestStatus(memorial.id, userId)
+  ])
 
   return buildAccessResult({
     memorialId: memorial.id,
@@ -134,8 +138,12 @@ export async function getMemorialAccessBySlug(slug: string, userId?: string | nu
   if (!memorial) return null
 
   const isOwner = !!userId && String(memorial.created_by) === String(userId)
-  const isCollaborator = await loadCollaboratorFlag(memorial.id, userId)
-  const requestStatus = await loadAccessRequestStatus(memorial.id, userId)
+  
+  // Load collaborator flag and access request status in parallel
+  const [isCollaborator, requestStatus] = await Promise.all([
+    loadCollaboratorFlag(memorial.id, userId),
+    loadAccessRequestStatus(memorial.id, userId)
+  ])
 
   return buildAccessResult({
     memorialId: memorial.id,

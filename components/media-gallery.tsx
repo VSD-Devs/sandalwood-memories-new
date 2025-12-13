@@ -8,6 +8,8 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
 import { Play, ImageIcon, Video, Calendar, X, ChevronLeft, ChevronRight, Plus } from "lucide-react"
 import { format } from "date-fns"
 import MediaUsageIndicator from "./media-usage-indicator"
+import LazyImage from "./lazy-image"
+import LazyVideo from "./lazy-video"
 
 interface MediaItem {
   id: string
@@ -160,7 +162,7 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
               >
                 {/* Display appropriate content based on file type */}
                 {item.file_type === "image" ? (
-                  <img
+                  <LazyImage
                     src={item.file_url}
                     alt={item.title || item.original_filename || "Uploaded image"}
                     className="w-full h-full object-cover transition-transform group-hover:scale-105"
@@ -175,7 +177,7 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                       </div>
                     </div>
                   ) : (
-                    <video
+                    <LazyVideo
                       src={item.file_url}
                       className="w-full h-full object-cover"
                       muted
@@ -287,7 +289,7 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                 {/* Media content */}
                 <div className="w-full h-full flex items-center justify-center p-4 md:p-8">
                   {selectedMedia.file_type === "image" ? (
-                    <img
+                    <LazyImage
                       src={selectedMedia.file_url || "/placeholder.svg"}
                       alt={selectedMedia.title || selectedMedia.original_filename || "Image"}
                       className="max-w-full max-h-full object-contain"
@@ -303,11 +305,12 @@ export default function MediaGallery({ media, title = "Photos & Videos", onUploa
                         title={selectedMedia.title || "YouTube Video"}
                       />
                     ) : (
-                      <video 
-                        src={selectedMedia.file_url} 
-                        controls 
-                        className="max-w-full max-h-full" 
-                        autoPlay 
+                      <LazyVideo
+                        src={selectedMedia.file_url}
+                        controls
+                        className="max-w-full max-h-full"
+                        autoPlay
+                        muted={false}
                       />
                     )
                   ) : (

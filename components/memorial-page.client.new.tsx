@@ -15,7 +15,7 @@ import MemorialPhotoModal from "@/components/memorial/memorial-photo-modal"
 import MemorialTributeModal from "@/components/memorial/memorial-tribute-modal"
 import MemorialBiographyModal from "@/components/memorial/memorial-biography-modal"
 
-const MediaUpload = dynamic(() => import(/* webpackChunkName: "media-upload" */ "@/components/media-upload"), {
+const MediaUpload = dynamic(() => import("@/components/media-upload"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center py-10 text-slate-500">
@@ -25,7 +25,7 @@ const MediaUpload = dynamic(() => import(/* webpackChunkName: "media-upload" */ 
   ),
 })
 
-const MemorialBottomNav = dynamic(() => import(/* webpackChunkName: "memorial-bottom-nav" */ "@/components/memorial-bottom-nav"), {
+const MemorialBottomNav = dynamic(() => import("@/components/memorial-bottom-nav"), {
   ssr: false,
 })
 
@@ -89,17 +89,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
     }
   }, [isPhotoModalOpen])
 
-  // Prevent hydration mismatch by not rendering until mounted
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
-
-  // Show loading state only if we don't have memorial data yet
-  if (loading && !memorial) {
+  if (loading) {
     return (
       <div className="min-h-screen bg-memorial-bg flex items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
@@ -133,6 +123,15 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
             <Button size="lg" className="h-12 px-8 text-base">Back to Memorials</Button>
           </Link>
         </div>
+      </div>
+    )
+  }
+
+  // Prevent hydration mismatch by not rendering until mounted
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
       </div>
     )
   }

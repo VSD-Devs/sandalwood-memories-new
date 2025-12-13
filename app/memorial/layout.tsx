@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 import { buildMetadata } from "@/lib/seo"
+import PerformanceMonitor from "@/components/performance-monitor"
 
 export const metadata = buildMetadata({
   title: "Memorial pages",
@@ -8,7 +9,12 @@ export const metadata = buildMetadata({
 })
 
 export default function MemorialLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      <PerformanceMonitor />
+      {children}
+    </>
+  )
 }
 
 
