@@ -39,6 +39,8 @@ interface InteractiveTimelineProps {
   memorialId?: string
   onEventsChange?: (events: TimelineEvent[]) => void
   onMediaUpload?: (newMedia: MediaItem) => void
+  externalModalOpen?: boolean
+  onExternalModalClose?: () => void
 }
 
 // Map categories to types
@@ -65,7 +67,7 @@ const typeColors = {
   passing: "bg-purple-50/90 text-purple-700 border-purple-200/60",
 }
 
-export function InteractiveTimeline({ events, media, canEdit = false, memorialId, onEventsChange, onMediaUpload }: InteractiveTimelineProps) {
+export function InteractiveTimeline({ events, media, canEdit = false, memorialId, onEventsChange, onMediaUpload, externalModalOpen = false, onExternalModalClose }: InteractiveTimelineProps) {
   const { user } = useAuth()
   const [activeIndex, setActiveIndex] = useState(0)
   const [direction, setDirection] = useState(0)
@@ -73,6 +75,16 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
 
   // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Handle external modal control
+  useEffect(() => {
+    if (externalModalOpen !== isModalOpen) {
+      setIsModalOpen(externalModalOpen)
+      if (!externalModalOpen && onExternalModalClose) {
+        onExternalModalClose()
+      }
+    }
+  }, [externalModalOpen, isModalOpen, onExternalModalClose])
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [form, setForm] = useState({
     title: "",
@@ -425,19 +437,16 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
 
   const variants = {
     enter: (direction: number) => ({
-      x: direction > 0 ? 400 : -400,
+      x: direction > 0 ? 300 : -300,
       opacity: 0,
-      scale: 0.95,
     }),
     center: {
       x: 0,
       opacity: 1,
-      scale: 1,
     },
     exit: (direction: number) => ({
-      x: direction < 0 ? 400 : -400,
+      x: direction < 0 ? 300 : -300,
       opacity: 0,
-      scale: 0.95,
     }),
   }
 
@@ -453,18 +462,15 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                 data-index={index}
                 onClick={() => goToEvent(index)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center px-6 py-3.5 rounded-2xl transition-all duration-300 min-w-[90px] font-medium",
+                  "relative flex flex-col items-center justify-center px-6 py-3.5 rounded-2xl min-w-[90px] font-medium",
                   index === activeIndex
-                    ? "bg-gradient-to-br from-[#1B3B5F] to-[#16304d] text-white scale-110 shadow-2xl ring-2 ring-[#1B3B5F]/20"
-                    : "hover:bg-white/90 text-slate-700 hover:text-slate-900 bg-white/60 backdrop-blur-sm border border-slate-200/60 hover:shadow-lg hover:scale-105",
+                    ? "bg-[#1B3B5F] text-white shadow-lg"
+                    : "text-slate-700 bg-white/80 border border-slate-200/60 hover:bg-white hover:shadow-md",
                 )}
               >
                 <span className="text-lg font-semibold">{event.year}</span>
                 {index === activeIndex && (
-                  <motion.div
-                    layoutId="activeIndicator"
-                    className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#1B3B5F] shadow-xl ring-2 ring-white"
-                  />
+                  <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full bg-[#1B3B5F] shadow-lg" />
                 )}
               </button>
             ))}
@@ -473,10 +479,10 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
         {/* Progress Bar */}
         <div className="absolute bottom-0 left-0 right-0 h-2 bg-slate-200/50 rounded-full overflow-hidden shadow-inner">
           <motion.div
-            className="h-full bg-gradient-to-r from-[#1B3B5F] via-[#16304d] to-[#1B3B5F] rounded-full shadow-sm"
+            className="h-full bg-[#1B3B5F] rounded-full"
             initial={{ width: 0 }}
             animate={{ width: `${((activeIndex + 1) / transformedEvents.length) * 100}%` }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
           />
         </div>
       </div>
@@ -491,7 +497,7 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
             className="absolute inset-0"
           >
             <div className="bg-white/90 backdrop-blur-md rounded-3xl border border-slate-200/60 shadow-2xl p-8 md:p-12 lg:p-16">
@@ -503,7 +509,7 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                       <img
                         src={activeEvent.image}
                         alt={activeEvent.title}
-                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="h-full w-full object-cover"
                         loading="lazy"
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
@@ -554,7 +560,7 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                       size="icon"
                       onClick={() => goToEvent(activeIndex - 1)}
                       disabled={activeIndex === 0}
-                      className="h-14 w-14 rounded-full bg-white/90 backdrop-blur-sm border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-14 w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <ChevronLeft className="h-6 w-6" />
                     </Button>
@@ -569,19 +575,10 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
                       size="icon"
                       onClick={() => goToEvent(activeIndex + 1)}
                       disabled={activeIndex === transformedEvents.length - 1}
-                      className="h-14 w-14 rounded-full bg-white/90 backdrop-blur-sm border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="h-14 w-14 rounded-full bg-white/90 border-slate-300/60 hover:bg-white hover:border-slate-400 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <ChevronRight className="h-6 w-6" />
                     </Button>
-                    {canEdit && (
-                      <Button
-                        onClick={() => setIsModalOpen(true)}
-                        className="h-14 px-6 rounded-full bg-gradient-to-r from-[#1B3B5F] to-[#16304d] text-white hover:from-[#1B3B5F]/90 hover:to-[#16304d]/90 shadow-lg hover:shadow-xl transition-all duration-300 ml-4"
-                      >
-                        <Plus className="h-5 w-5 mr-2" />
-                        Add Event
-                      </Button>
-                    )}
                   </div>
                 </div>
               </div>
@@ -597,9 +594,9 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
             key={index}
             onClick={() => goToEvent(index)}
             className={cn(
-              "h-2.5 rounded-full transition-all duration-300 hover:scale-110",
-              index === activeIndex 
-                ? "w-10 bg-gradient-to-r from-[#1B3B5F] to-[#16304d] shadow-md" 
+              "h-2.5 rounded-full transition-colors duration-200",
+              index === activeIndex
+                ? "w-10 bg-[#1B3B5F] shadow-sm"
                 : "w-2.5 bg-slate-300 hover:bg-slate-400",
             )}
             aria-label={`Go to event ${index + 1}`}
@@ -608,7 +605,12 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
       </div>
 
       {/* Add Event Modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      <Dialog open={isModalOpen} onOpenChange={(open) => {
+        setIsModalOpen(open)
+        if (!open && onExternalModalClose) {
+          onExternalModalClose()
+        }
+      }}>
         <DialogContent className="max-w-6xl sm:max-w-6xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
           <DialogHeader className="pb-6">
             <DialogTitle className="font-serif text-3xl font-semibold text-slate-900">

@@ -32,9 +32,11 @@ interface TimelineWrapperProps {
   media?: MediaItem[]
   onMediaUpload?: (newMedia: MediaItem) => void
   onCountChange?: (count: number) => void
+  externalModalOpen?: boolean
+  onExternalModalClose?: () => void
 }
 
-export default function TimelineWrapper({ memorialId, canEdit = false, media = [], onMediaUpload, onCountChange }: TimelineWrapperProps) {
+export default function TimelineWrapper({ memorialId, canEdit = false, media = [], onMediaUpload, onCountChange, externalModalOpen, onExternalModalClose }: TimelineWrapperProps) {
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -104,6 +106,8 @@ export default function TimelineWrapper({ memorialId, canEdit = false, media = [
       memorialId={memorialId}
       onEventsChange={handleEventsChange}
       onMediaUpload={onMediaUpload}
+      externalModalOpen={externalModalOpen}
+      onExternalModalClose={onExternalModalClose}
     />
   )
 }

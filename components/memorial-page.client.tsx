@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { format } from "date-fns"
-import { Heart, Share2, Calendar, Edit, Users, Loader2, Camera, Trash2, Lock, ShieldCheck, Ban, Clock, Eye, EyeOff, ArrowLeft } from "lucide-react"
+import { Heart, Share2, Calendar, Edit, Users, Loader2, Camera, Trash2, Lock, ShieldCheck, Ban, Clock, Eye, EyeOff, ArrowLeft, Plus } from "lucide-react"
 
 import { useAuth } from "@/contexts/auth-context"
 import { useToast } from "@/hooks/use-toast"
@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 
-const TimelineWrapper = dynamic(() => import("@/components/timeline-wrapper"), {
+const TimelineWrapper = dynamic(() => import("@/components/timeline-wrapper").then(mod => ({ default: mod.default })), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center py-16 text-slate-500">
@@ -135,7 +135,10 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
   // Modal states
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false)
   const [isTributeModalOpen, setIsTributeModalOpen] = useState(false)
+  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false)
   const [isBiographyEditOpen, setIsBiographyEditOpen] = useState(false)
+  const [isCoverImageUploading, setIsCoverImageUploading] = useState(false)
+  const coverImageInputRef = useRef<HTMLInputElement | null>(null)
   
   
   const [tributeForm, setTributeForm] = useState({
@@ -275,6 +278,84 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
       })
     } finally {
       setPrivacyUpdating(false)
+    }
+  }
+
+  const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !memorial?.id) return
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image file.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setIsCoverImageUploading(true)
+    try {
+      // Process and compress the image
+      const { MediaProcessor } = await import("@/lib/media-processing")
+      const processed = await MediaProcessor.processImage(file)
+
+      // Convert data URL to blob for upload
+      const response = await fetch(processed.url)
+      const blob = await response.blob()
+
+      // Upload to blob storage
+      const formData = new FormData()
+      formData.append("file", blob, file.name)
+      formData.append("uploaded_by", user?.id || "")
+
+      const uploadResponse = await fetch(`/api/memorials/${memorial.id}/media/upload`, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      })
+
+      if (!uploadResponse.ok) {
+        throw new Error("Upload failed")
+      }
+
+      const uploadData = await uploadResponse.json()
+      const coverImageUrl = uploadData.items?.[0]?.file_url || uploadData.file_url
+
+      if (!coverImageUrl) {
+        throw new Error("No file URL returned")
+      }
+
+      // Update memorial with new cover image URL
+      const updateResponse = await fetch(`/api/memorials/${memorial.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ cover_image_url: coverImageUrl }),
+      })
+
+      if (!updateResponse.ok) {
+        throw new Error("Update failed")
+      }
+
+      setMemorial((prev) => (prev ? { ...prev, cover_image_url: coverImageUrl } : null))
+      toast({
+        title: "Cover image updated",
+        description: "The cover image has been changed successfully.",
+      })
+    } catch (error) {
+      console.error("Cover image update error:", error)
+      toast({
+        title: "Could not update cover image",
+        description: "Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCoverImageUploading(false)
+      if (coverImageInputRef.current) {
+        coverImageInputRef.current.value = ""
+      }
     }
   }
 
@@ -615,27 +696,41 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
   }
 
   const memorialUrl = `${typeof window !== "undefined" ? window.location.origin : "https://sandalwood-memories.com"}/memorial/${memorial?.slug || identifier}`
-  const defaultBackground = "/flower-bay.jpg"
+  // Always use memorial-cover.png as the default cover image for all memorials
+  const defaultBackground = "/memorial-cover.png"
+  
+  // Use default cover image if cover_image_url is null, empty, or points to an invalid image
+  const getCoverImageUrl = () => {
+    const coverUrl = memorial?.cover_image_url
+    // Only use custom cover if it's explicitly set and not empty
+    if (coverUrl && coverUrl.trim() !== "" && coverUrl !== "/elderly-woman-smiling.png" && coverUrl !== "/elderly-woman-reading.png" && coverUrl !== "/elderly-woman-gardening.png" && coverUrl !== "/elderly-woman-volunteering-library.png") {
+      return coverUrl
+    }
+    return defaultBackground
+  }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div className="min-h-screen bg-background pb-20 md:pb-20" style={{ paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" }}>
       {/* Navigation */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+      <nav className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 md:px-6 md:py-4">
           <Link
             href="/memorial"
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            className="flex items-center gap-2 text-sm md:text-sm text-muted-foreground hover:text-foreground transition-colors touch-manipulation min-h-[44px] min-w-[44px] items-center justify-center -ml-2 pl-2"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Memorials
+            <ArrowLeft className="h-5 w-5 md:h-4 md:w-4" />
+            <span className="hidden sm:inline">Back to Memorials</span>
+            <span className="sm:hidden">Back</span>
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2">
             <Button 
               variant="ghost" 
               size="icon"
               onClick={() => setIsTributeModalOpen(true)}
+              className="h-11 w-11 md:h-10 md:w-10 touch-manipulation"
+              aria-label="Leave a tribute"
             >
-              <Heart className="h-4 w-4" />
+              <Heart className="h-5 w-5 md:h-4 md:w-4" />
             </Button>
             <Button 
               variant="ghost" 
@@ -655,44 +750,94 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                   })
                 }
               }}
+              className="h-11 w-11 md:h-10 md:w-10 touch-manipulation"
+              aria-label="Share memorial"
             >
-              <Share2 className="h-4 w-4" />
+              <Share2 className="h-5 w-5 md:h-4 md:w-4" />
             </Button>
+            {memorial?.isOwner && (
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setIsPrivacyPanelOpen(true)}
+                title="Privacy & Access Settings"
+                className="h-11 w-11 md:h-10 md:w-10 touch-manipulation"
+                aria-label="Privacy settings"
+              >
+                <ShieldCheck className="h-5 w-5 md:h-4 md:w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </nav>
 
       {/* Hero Section */}
       <section className="relative">
-        <div className="absolute inset-0 h-[400px] md:h-[500px]">
+        <div className="absolute inset-0 h-[50vh] max-h-[400px] md:h-[500px]">
           <img 
-            src={memorial.cover_image_url || defaultBackground} 
+            src={getCoverImageUrl()} 
             alt="" 
             className="h-full w-full object-cover" 
+            onError={(e) => {
+              // Always fallback to memorial-cover.png if image fails to load
+              e.currentTarget.src = "/memorial-cover.png"
+            }}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-background/20" />
+          {(memorial.isOwner || user?.id === memorial?.created_by) && (
+            <div className="absolute top-3 right-3 md:top-4 md:right-4">
+              <input
+                ref={coverImageInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverImageChange}
+                disabled={isCoverImageUploading}
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => coverImageInputRef.current?.click()}
+                disabled={isCoverImageUploading}
+                className="bg-white/95 hover:bg-white border border-white/20 shadow-lg backdrop-blur-sm text-slate-900 h-10 px-3 text-sm md:h-9 md:px-2 md:text-xs touch-manipulation"
+              >
+                {isCoverImageUploading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                    <span className="hidden sm:inline">Uploading...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="h-4 w-4 mr-1.5" />
+                    <span className="hidden sm:inline">Change cover</span>
+                    <span className="sm:hidden">Cover</span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
         </div>
 
-        <div className="relative mx-auto max-w-4xl px-6 pt-32 pb-12 md:pt-48">
+        <div className="relative mx-auto max-w-4xl px-4 pt-24 pb-8 md:px-6 md:pt-48 md:pb-12">
           <div className="flex flex-col items-center text-center">
-            <div className="h-32 w-32 overflow-hidden rounded-full border-4 border-background shadow-xl md:h-40 md:w-40">
+            <div className="h-32 w-32 overflow-hidden rounded-xl border-4 border-background shadow-xl md:h-48 md:w-48">
               <img
                 src={memorial.profile_image_url || "/elderly-woman-smiling.png"}
                 alt={memorial.full_name}
                 className="h-full w-full object-cover"
               />
             </div>
-            <h1 className="mt-6 font-serif text-3xl font-medium text-foreground md:text-5xl">
+            <h1 className="mt-4 md:mt-6 font-serif text-2xl font-medium text-foreground md:text-5xl leading-tight px-2">
               {memorial.full_name}
             </h1>
-            <div className="mt-3 flex items-center gap-2 text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <span>
+            <div className="mt-2 md:mt-3 flex items-center gap-2 text-muted-foreground text-sm md:text-base px-4">
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span className="text-center">
                 {memorial.birth_date ? format(new Date(memorial.birth_date), "d MMM yyyy") : "Unknown"} — {memorial.death_date ? format(new Date(memorial.death_date), "d MMM yyyy") : "Unknown"}
               </span>
             </div>
             {memorial.title && (
-              <p className="mt-4 max-w-xl text-lg italic text-muted-foreground">"{memorial.title}"</p>
+              <p className="mt-3 md:mt-4 max-w-xl text-base md:text-lg italic text-muted-foreground px-4">"{memorial.title}"</p>
             )}
           </div>
         </div>
@@ -700,10 +845,10 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
 
       {/* Biography */}
       {memorial.biography && (
-        <section className="py-12">
-          <div className="mx-auto max-w-3xl px-6">
-            <h2 className="font-serif text-2xl font-medium text-foreground">About</h2>
-            <div className="mt-4 leading-relaxed text-muted-foreground space-y-4">
+        <section className="py-8 md:py-12">
+          <div className="mx-auto max-w-3xl px-4 md:px-6">
+            <h2 className="font-serif text-xl md:text-2xl font-medium text-foreground">About</h2>
+            <div className="mt-3 md:mt-4 leading-relaxed text-muted-foreground space-y-3 md:space-y-4 text-base md:text-base">
               {memorial.biography.split("\n\n").map((paragraph, index) => (
                 <p key={index}>{paragraph}</p>
               ))}
@@ -712,7 +857,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-6"
+                className="mt-4 md:mt-6 h-10 md:h-9 touch-manipulation"
                 onClick={() => {
                   setBiographyForm({ biography: memorial.biography || "" })
                   setIsBiographyEditOpen(true)
@@ -728,19 +873,30 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
 
       {/* Tab Content */}
       {activeTab === "timeline" && (
-        <section className="border-t border-border bg-muted/20 py-16">
-          <div className="mx-auto max-w-5xl px-6">
-            <div className="flex items-center justify-between mb-12">
-              <div className="text-center flex-1">
-                <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">Life Journey</h2>
-                <p className="mt-2 text-muted-foreground">Scroll through the moments that made their life extraordinary</p>
+        <section className="border-t border-border bg-muted/20 py-8 md:py-16">
+          <div className="mx-auto max-w-5xl px-4 md:px-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 md:mb-12 gap-4">
+              <div className="text-center sm:text-left flex-1">
+                <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Life Journey</h2>
+                <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Scroll through the moments that made their life extraordinary</p>
               </div>
+              {(memorial?.isOwner || user?.id === memorial?.created_by) && (
+                <Button
+                  onClick={() => setIsTimelineModalOpen(true)}
+                  className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-11 md:h-10 px-4 md:px-3 touch-manipulation w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Event
+                </Button>
+              )}
             </div>
-            <TimelineWrapper 
+            <TimelineWrapper
               memorialId={memorial?.id || identifier}
               canEdit={memorial?.isOwner || user?.id === memorial?.created_by}
               media={media}
               onCountChange={setTimelineCount}
+              externalModalOpen={isTimelineModalOpen}
+              onExternalModalClose={() => setIsTimelineModalOpen(false)}
               onMediaUpload={(newMedia) => {
                 const enrichedMedia: MemorialMediaItem = {
                   ...newMedia,
@@ -754,17 +910,17 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
       )}
 
       {activeTab === "gallery" && (
-        <section className="border-t border-border py-16 pb-24">
-          <div className="mx-auto max-w-6xl px-6">
-            <div className="flex items-center justify-between mb-8">
+        <section id="gallery-section" className="border-t border-border py-8 md:py-16 pb-20 md:pb-24">
+          <div className="mx-auto max-w-6xl px-4 md:px-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 gap-4">
               <div>
-                <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">Gallery</h2>
-                <p className="mt-2 text-muted-foreground">Photos and videos celebrating their life</p>
+                <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Gallery</h2>
+                <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Photos and videos celebrating their life</p>
               </div>
               {(memorial?.isOwner || user?.id === memorial?.created_by) && (
                 <Button
                   onClick={() => setIsPhotoModalOpen(true)}
-                  className="bg-[#1B3B5F] hover:bg-[#16304d] text-white"
+                  className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-11 md:h-10 px-4 md:px-3 touch-manipulation w-full sm:w-auto"
                 >
                   <Camera className="h-4 w-4 mr-2" />
                   Add Media
@@ -782,11 +938,11 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
       )}
 
       {activeTab === "tributes" && (
-        <section className="border-t border-border bg-muted/20 py-16 pb-24">
-          <div className="mx-auto max-w-4xl px-6">
-            <div className="text-center mb-12">
-              <h2 className="font-serif text-2xl font-medium text-foreground md:text-3xl">Tributes</h2>
-              <p className="mt-2 text-muted-foreground">Share your memories and condolences</p>
+        <section id="tributes-section" className="border-t border-border bg-muted/20 py-8 md:py-16 pb-20 md:pb-24">
+          <div className="mx-auto max-w-4xl px-4 md:px-6">
+            <div className="text-center mb-8 md:mb-12">
+              <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Tributes</h2>
+              <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Share your memories and condolences</p>
             </div>
             
             {/* Tribute Form */}
@@ -1028,7 +1184,7 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
       </footer>
 
       {/* Modals */}
-      {/* Photo Upload Modal */}
+        {/* Photo Upload Modal */}
         <Dialog
           open={isPhotoModalOpen}
           onOpenChange={(open) => {
@@ -1038,8 +1194,8 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
             }
           }}
         >
-          <DialogContent className="max-w-4xl sm:max-w-4xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
-            <DialogTitle className="font-serif text-3xl font-semibold pb-6">
+          <DialogContent className="max-w-4xl w-full h-full md:h-auto md:max-h-[90vh] overflow-y-auto top-0 md:top-[52%] rounded-none md:rounded-lg p-4 md:p-6">
+            <DialogTitle className="font-serif text-2xl md:text-3xl font-semibold pb-4 md:pb-6">
             Add photo or video
             </DialogTitle>
             <div className="space-y-6">
@@ -1077,15 +1233,15 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
             setTributeErrors({})
           }
         }}>
-          <DialogContent className="max-w-4xl sm:max-w-4xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
-            <DialogTitle className="font-serif text-3xl font-semibold flex items-center gap-3 pb-6">
-            <Heart className="h-6 w-6 text-[#1B3B5F]" />
+          <DialogContent className="max-w-4xl w-full h-full md:h-auto md:max-h-[90vh] overflow-y-auto top-0 md:top-[52%] rounded-none md:rounded-lg p-4 md:p-6">
+            <DialogTitle className="font-serif text-2xl md:text-3xl font-semibold flex items-center gap-3 pb-4 md:pb-6">
+            <Heart className="h-5 w-5 md:h-6 md:w-6 text-[#1B3B5F]" />
             Leave a tribute
             </DialogTitle>
             <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                <Label htmlFor="tribute-name" className="text-base font-semibold">Your name <span className="text-red-600">*</span></Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="space-y-2 md:space-y-3">
+                <Label htmlFor="tribute-name" className="text-sm md:text-base font-semibold">Your name <span className="text-red-600">*</span></Label>
                   <Input
                     id="tribute-name"
                     value={tributeForm.author_name}
@@ -1096,15 +1252,15 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                       }
                     }}
                     placeholder="Enter your full name"
-                    className={`h-12 text-base ${tributeErrors.author_name ? "border-red-500" : ""}`}
+                    className={`h-12 md:h-12 text-base ${tributeErrors.author_name ? "border-red-500" : ""}`}
                   />
                   {tributeErrors.author_name && (
-                    <p className="text-base text-red-600">{tributeErrors.author_name}</p>
+                    <p className="text-sm md:text-base text-red-600">{tributeErrors.author_name}</p>
                   )}
                 </div>
                 
-                <div className="space-y-3">
-                  <Label htmlFor="tribute-email" className="text-base font-semibold">Email <span className="text-slate-500 font-normal">(optional)</span></Label>
+                <div className="space-y-2 md:space-y-3">
+                  <Label htmlFor="tribute-email" className="text-sm md:text-base font-semibold">Email <span className="text-slate-500 font-normal">(optional)</span></Label>
                   <Input
                     id="tribute-email"
                     type="email"
@@ -1116,16 +1272,16 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                       }
                     }}
                     placeholder="your@email.com"
-                    className={`h-12 text-base ${tributeErrors.author_email ? "border-red-500" : ""}`}
+                    className={`h-12 md:h-12 text-base ${tributeErrors.author_email ? "border-red-500" : ""}`}
                   />
                   {tributeErrors.author_email && (
-                    <p className="text-base text-red-600">{tributeErrors.author_email}</p>
+                    <p className="text-sm md:text-base text-red-600">{tributeErrors.author_email}</p>
                   )}
                 </div>
               </div>
               
-              <div className="space-y-3">
-              <Label htmlFor="tribute-message" className="text-base font-semibold">Your message <span className="text-red-600">*</span></Label>
+              <div className="space-y-2 md:space-y-3">
+              <Label htmlFor="tribute-message" className="text-sm md:text-base font-semibold">Your message <span className="text-red-600">*</span></Label>
                 <Textarea
                   id="tribute-message"
                   value={tributeForm.message}
@@ -1142,21 +1298,21 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
                 />
                 <div className="flex justify-between items-center">
                   {tributeErrors.message && (
-                    <p className="text-base text-red-600">{tributeErrors.message}</p>
+                    <p className="text-sm md:text-base text-red-600">{tributeErrors.message}</p>
                   )}
-                <p className="text-base text-slate-600 ml-auto">
+                <p className="text-sm md:text-base text-slate-600 ml-auto">
                     {tributeForm.message.length}/2000 characters
                   </p>
                 </div>
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row justify-end gap-4 pt-6 border-t border-slate-200">
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 md:gap-4 pt-4 md:pt-6 border-t border-slate-200">
                 <Button 
                   size="lg"
                   variant="outline" 
                   onClick={() => setIsTributeModalOpen(false)}
                   disabled={isSubmittingTribute}
-                  className="h-12 px-8 text-base"
+                  className="h-12 px-6 md:px-8 text-base touch-manipulation w-full sm:w-auto"
                 >
                   Cancel
                 </Button>
@@ -1233,8 +1389,8 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
 
         {/* Biography Edit Modal */}
         <Dialog open={isBiographyEditOpen} onOpenChange={setIsBiographyEditOpen}>
-          <DialogContent className="max-w-4xl sm:max-w-4xl max-h-[90vh] overflow-y-auto top-[56%] sm:top-[52%]">
-            <DialogTitle className="font-serif text-3xl font-semibold pb-6">
+          <DialogContent className="max-w-4xl w-full h-full md:h-auto md:max-h-[90vh] overflow-y-auto top-0 md:top-[52%] rounded-none md:rounded-lg p-4 md:p-6">
+            <DialogTitle className="font-serif text-2xl md:text-3xl font-semibold pb-4 md:pb-6">
             Edit life story
             </DialogTitle>
             <div className="space-y-6">

@@ -15,6 +15,25 @@ const navItems = [
 ] as const
 
 export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialBottomNavProps) {
+  const handleTabClick = (tabId: "timeline" | "gallery" | "tributes") => {
+    setActiveTab(tabId)
+
+    // Smooth scroll to section for gallery and tributes
+    if (tabId === "gallery" || tabId === "tributes") {
+      const sectionId = `${tabId}-section`
+      setTimeout(() => {
+        const element = document.getElementById(sectionId)
+        if (element) {
+          element.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest"
+          })
+        }
+      }, 100) // Small delay to allow state update
+    }
+  }
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-t border-border">
       <div className="mx-auto max-w-6xl">
@@ -28,7 +47,7 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
             <button
               key={item.id}
               type="button"
-              onClick={() => setActiveTab(item.id as "timeline" | "gallery" | "tributes")}
+              onClick={() => handleTabClick(item.id as "timeline" | "gallery" | "tributes")}
               className={cn(
                 "flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
                 activeTab === item.id

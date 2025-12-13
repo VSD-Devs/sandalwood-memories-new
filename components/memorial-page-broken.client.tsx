@@ -367,7 +367,7 @@ export default function MemorialClient({ id }: { id: string }) {
             />
           ) : (
             <img 
-              src="/rose-garden.png" 
+              src="/memorial-cover.png" 
               alt="Default cover" 
               className="w-full h-full object-cover opacity-50" 
             />
