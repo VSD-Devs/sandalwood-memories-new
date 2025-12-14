@@ -53,7 +53,7 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
               type="button"
               onClick={() => handleTabClick(item.id as "timeline" | "gallery" | "tributes")}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 touch-manipulation min-h-[44px]",
+                "flex flex-col items-center justify-center gap-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 touch-manipulation min-h-[44px]",
                 activeTab === item.id
                   ? "text-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -68,7 +68,7 @@ export default function MemorialBottomNav({ activeTab, setActiveTab }: MemorialB
                 "h-6 w-6 md:h-5 md:w-5 transition-all",
                 activeTab === item.id ? "scale-110" : ""
               )} />
-              <span className="text-xs md:text-xs">{item.label}</span>
+              <span className="text-sm md:text-sm">{item.label}</span>
             </button>
           ))}
         </nav>

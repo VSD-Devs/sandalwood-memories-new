@@ -169,7 +169,7 @@ function Tab({
       aria-current={active ? "page" : undefined}
     >
       {icon}
-      <span className="text-xs">{label}</span>
+      <span className="text-sm">{label}</span>
     </Link>
   )
 }
@@ -179,7 +179,7 @@ function Action({ label, onClick }: { label: string; onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="focus-visible:ring-ring bg-muted/60 hover:bg-muted text-foreground inline-flex h-12 items-center justify-center rounded-md px-3 text-sm outline-hidden ring-offset-background transition-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      className="focus-visible:ring-ring bg-muted/60 hover:bg-muted text-foreground inline-flex h-12 items-center justify-center rounded-md px-3 text-base outline-hidden ring-offset-background transition-none focus-visible:ring-2 focus-visible:ring-offset-2"
     >
       {label}
     </button>

@@ -37,7 +37,7 @@ export default function RootLayout({
         "@type": "Organization",
         name: siteName,
         url: siteUrl,
-        logo: `${siteUrl}/logo.png`,
+        logo: `${siteUrl}/sandalwood-memories-logo.png`,
         contactPoint: [
           {
             "@type": "ContactPoint",

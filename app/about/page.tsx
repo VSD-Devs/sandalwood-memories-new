@@ -16,50 +16,50 @@ export const metadata = buildMetadata({
 const services = [
   {
     title: "Headstones & lawn memorials",
-    detail: "Traditional and contemporary designs crafted for UK cemeteries with thoughtful inscription guidance.",
+    detail: "Timeless designs that stand proud in any cemetery. We help you choose the perfect words and ensure everything meets local guidelines.",
   },
   {
     title: "Kerb sets & bespoke designs",
-    detail: "Complete kerb sets and personalised shapes that reflect the character of each life remembered.",
+    detail: "Personalised memorials that reflect unique personalities. From favourite hobbies to family crests, we create something truly individual.",
   },
   {
     title: "Cremation memorials",
-    detail: "Gentle options for gardens of remembrance, including tablets, desks, and markers.",
+    detail: "Peaceful options for gardens of remembrance. Subtle, beautiful markers that provide a gentle place for quiet reflection.",
   },
   {
     title: "Heart & children’s memorials",
-    detail: "Soft, compassionate designs that speak to enduring love and care.",
+    detail: "Tender, compassionate designs that speak of love without words. Soft curves and gentle details for the most precious memories.",
   },
   {
     title: "Laser etching & fine lettering",
-    detail: "Detailed artwork, portraits, and precise lettering carried out by skilled craftspeople.",
+    detail: "Intricate artwork and portraits etched with precision. Every letter, every line crafted by hands that understand the importance.",
   },
   {
     title: "Granite vases & markers",
-    detail: "Considered finishing touches that keep tributes tidy, weather-safe, and beautiful.",
+    detail: "Beautiful finishing touches that keep memorials looking cared for. Weather-resistant and designed to last as long as the memories.",
   },
 ]
 
 const values = [
   {
     icon: <Heart className="h-6 w-6 text-[#1B3B5F]" aria-hidden />,
-    title: "Family-run care",
-    copy: "Over 25 years supporting families with clear guidance, patient listening, and practical help.",
+    title: "Human first, business second",
+    copy: "We've been family ourselves, so we know grief doesn't follow a schedule. We take the time to listen, explain, and support you through every step.",
   },
   {
     icon: <Hammer className="h-6 w-6 text-[#1B3B5F]" aria-hidden />,
-    title: "Craft you can see",
-    copy: "Memorial masonry completed in trusted UK workshops, using durable stone and careful finishing.",
+    title: "Quality you can trust",
+    copy: "Every memorial is handcrafted in UK workshops by skilled people who understand that this work matters. We don't rush perfection.",
   },
   {
     icon: <ShieldCheck className="h-6 w-6 text-[#1B3B5F]" aria-hidden />,
-    title: "Steady reassurance",
-    copy: "Transparent pricing, cemetery liaison, and paperwork support so nothing feels overwhelming.",
+    title: "No hidden surprises",
+    copy: "Clear pricing, honest timelines, and someone who actually picks up the phone. We'll handle the paperwork so you can focus on remembering.",
   },
   {
     icon: <Users className="h-6 w-6 text-[#1B3B5F]" aria-hidden />,
-    title: "Accessible for every generation",
-    copy: "Clear language, strong contrast, and calm layouts online and in print so families feel included.",
+    title: "Built for everyone",
+    copy: "Whether you're 18 or 98, tech-savvy or prefer a good chat, our approach works for all. We speak plainly and design thoughtfully.",
   },
 ]
 
@@ -85,212 +85,241 @@ const contactPoints = [
 
 export default function AboutPage() {
   return (
-    <div className="bg-[#F5F5F0] text-slate-800">
-      <section className="bg-gradient-to-br from-white via-[#F7F8F5] to-[#E8F0F5] border-b border-slate-200/60">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-medium text-[#1B3B5F] shadow-sm">
-              Sandalwood Memorials · Serving families across the UK
-            </div>
-            <h1 className="font-serif text-4xl sm:text-5xl font-medium text-[#0f3c5d] leading-tight">
-              A calm, caring partner for memorial masonry — and lasting digital remembrance.
+    <div className="min-h-screen bg-white">
+      {/* Hero Banner */}
+      <section className="relative bg-gradient-to-br from-[#1B3B5F] via-[#16304d] to-[#0f243d] text-white">
+        <div className="absolute inset-0 opacity-10">
+          <Image
+            src="/elderly-woman-gardening.png"
+            alt=""
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
+          />
+        </div>
+
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
+          <div className="max-w-4xl mx-auto text-center space-y-6">
+            <h1 className="font-serif text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-semibold leading-tight">
+              Honouring lives with care — from stone to screen.
             </h1>
-            <p className="text-lg sm:text-xl leading-relaxed text-slate-700">
-              Our family-run team has guided loved ones for more than two decades, crafting headstones, kerb sets, and
-              cremation memorials with patience and respect. Sandalwood Memories extends that care online, giving every
-              family a gentle, private space to share stories and photographs.
+            <p className="text-xl sm:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+              For over two decades, we've stood by families through their most difficult moments. From crafting beautiful memorials to creating peaceful online spaces, we make remembrance personal and meaningful.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <Button asChild className="rounded-full bg-[#1B3B5F] hover:bg-[#16304d] text-white px-6">
-                <Link href="/create">
-                  Start a digital memorial
-                  <ArrowRight className="ml-2 h-4 w-4" aria-hidden />
-                </Link>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-6">
+              <Button
+                size="lg"
+                className="bg-white text-[#1B3B5F] hover:bg-slate-100 px-8 py-4 text-lg font-medium rounded-full shadow-lg"
+                asChild
+              >
+                <Link href="/create">Start a digital memorial</Link>
               </Button>
               <Button
-                asChild
+                size="lg"
                 variant="outline"
-                className="rounded-full border-2 border-[#1B3B5F] text-[#1B3B5F] hover:bg-[#1B3B5F] hover:text-white px-6"
+                className="border-2 border-white text-white hover:bg-white hover:text-[#1B3B5F] px-8 py-4 text-lg font-medium rounded-full"
+                asChild
               >
                 <Link href="tel:+442030034855">Speak with the team</Link>
               </Button>
             </div>
-          </div>
-
-          <div className="relative">
-            <div className="rounded-3xl border border-slate-200 bg-white shadow-md overflow-hidden">
-              <div className="relative h-64 sm:h-80">
-                <Image
-                  src="/elderly-woman-gardening.png"
-                  alt="A family member tending to a garden"
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  priority
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-200">
-                <div className="p-6 space-y-2">
-                  <p className="text-sm font-semibold text-[#1B3B5F]">25+ years</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">Family-led memorial masonry and guidance.</p>
-                </div>
-                <div className="p-6 space-y-2">
-                  <p className="text-sm font-semibold text-[#1B3B5F]">UK showrooms</p>
-                  <p className="text-sm text-slate-600 leading-relaxed">London head office with support across Oxford, Canterbury, Bristol, Cambridge, and Ashford.</p>
-                </div>
-              </div>
-            </div>
+            <p className="text-sm text-white/70 pt-2">No credit card required</p>
           </div>
         </div>
       </section>
 
-      <section className="bg-white border-b border-slate-200/60">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-14 lg:py-20 space-y-10">
-          <div className="max-w-3xl space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#1B3B5F]">Our story</p>
-            <h2 className="font-serif text-3xl sm:text-4xl text-[#0f3c5d]">Rooted in craft, guided by kindness.</h2>
-            <p className="text-lg leading-relaxed text-slate-700">
-              Sandalwood Memorials began with the simple belief that every family deserves steady, honest support when
-              choosing a memorial. We liaise with cemeteries, handle permissions, and shape each stone with care. Online,
-              we offer the same reassurance: straightforward controls, private sharing, and accessible design that suits
-              every generation.
+      {/* Our Story */}
+      <section className="py-16 lg:py-24 bg-[#F5F5F0]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center mb-12 space-y-4">
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#1B3B5F]">
+              More than just stone and code
+            </h2>
+            <p className="text-lg lg:text-xl text-slate-700 max-w-3xl mx-auto leading-relaxed">
+              We started with one simple promise: when families need to say goodbye, they shouldn't have to do it alone. Whether it's helping choose the perfect stone or creating a digital space to gather memories, we're here to make the impossible feel possible.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {values.map((value) => (
               <div
                 key={value.title}
-                className="h-full rounded-2xl border border-slate-200 bg-[#F9FAFB] p-6 shadow-sm"
+                className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md p-6 transition-shadow"
               >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white border border-slate-200">
-                    {value.icon}
-                  </div>
-                  <p className="font-semibold text-[#0f3c5d]">{value.title}</p>
+                <div className="w-12 h-12 rounded-xl bg-[#E8F0F5] flex items-center justify-center text-[#1B3B5F] mb-4">
+                  {value.icon}
                 </div>
-                <p className="text-sm text-slate-700 leading-relaxed">{value.copy}</p>
+                <h3 className="font-serif text-xl font-semibold text-[#1B3B5F] mb-3">
+                  {value.title}
+                </h3>
+                <p className="text-slate-700 leading-relaxed text-sm">{value.copy}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-[#F5F5F0] border-b border-slate-200/60">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-14 lg:py-20 space-y-8">
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#1B3B5F]">Memorial masonry</p>
-            <h3 className="font-serif text-3xl text-[#0f3c5d]">Practical guidance and thoughtful choice.</h3>
-            <p className="text-lg text-slate-700 leading-relaxed max-w-4xl">
-              Whether you prefer a classic headstone, a bespoke kerb set, or a discreet cremation tablet, we help you
-              compare materials, finishes, and cemetery requirements. Everything is explained in plain English with clear
-              timelines and pricing.
+      {/* Memorial Masonry */}
+      <section className="py-16 lg:py-24 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl mx-auto text-center mb-12 space-y-4">
+            <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold text-[#1B3B5F]">
+              Memorials that tell your story
+            </h2>
+            <p className="text-lg lg:text-xl text-slate-700 max-w-3xl mx-auto leading-relaxed">
+              From traditional headstones to contemporary designs, we help you choose what feels right. We'll guide you through materials, explain cemetery rules, and work with you to create something that honours your loved one perfectly.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {services.map((service) => (
-              <div key={service.title} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h4 className="text-lg font-semibold text-[#0f3c5d]">{service.title}</h4>
-                <p className="mt-3 text-sm text-slate-700 leading-relaxed">{service.detail}</p>
+              <div key={service.title} className="bg-[#F5F5F0] rounded-3xl p-8 border border-slate-200">
+                <h3 className="font-serif text-xl font-semibold text-[#1B3B5F] mb-4">
+                  {service.title}
+                </h3>
+                <p className="text-slate-700 leading-relaxed">{service.detail}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-white border-b border-slate-200/60">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-14 lg:py-20 grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-start">
-          <div className="space-y-4">
-            <p className="text-sm font-semibold uppercase tracking-wide text-[#1B3B5F]">Digital remembrance</p>
-            <h3 className="font-serif text-3xl text-[#0f3c5d]">A private online space that complements the stone.</h3>
-            <p className="text-lg text-slate-700 leading-relaxed">
-              Sandalwood Memories lets families gather stories, photographs, and tributes alongside the physical memorial.
-              You choose who can contribute, keep everything secure, and preserve memories for relatives near and far.
-            </p>
-            <ul className="space-y-3 text-slate-700">
-              <li className="flex items-start gap-3">
-                <BookOpen className="mt-1 h-5 w-5 text-[#1B3B5F]" aria-hidden />
-                <span>Simple timelines for life stories, key dates, and favourite moments.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <ShieldCheck className="mt-1 h-5 w-5 text-[#1B3B5F]" aria-hidden />
-                <span>Privacy-first controls with invitation-based access for friends and family.</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Heart className="mt-1 h-5 w-5 text-[#1B3B5F]" aria-hidden />
-                <span>Accessible colours, generous type, and a calm layout for all ages.</span>
-              </li>
-            </ul>
-          </div>
+      {/* Digital Remembrance */}
+      <section className="py-16 lg:py-24 bg-[#F5F5F0]">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div>
+                <h2 className="font-serif text-3xl lg:text-4xl font-semibold text-[#1B3B5F] mb-4">
+                  Memories that live forever online
+                </h2>
+                <p className="text-lg text-slate-700 leading-relaxed">
+                  When the stone can't hold all the stories, our digital memorials step in. Family and friends can share photos, memories, and messages in a peaceful space that stays private and secure. Geography becomes no barrier to remembering together.
+                </p>
+              </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-[#F9FAFB] p-6 shadow-sm space-y-5">
-            <div className="rounded-2xl bg-white border border-slate-200 p-5 space-y-3">
-              <p className="text-sm font-semibold text-[#1B3B5F]">Showrooms & support</p>
-              <p className="text-sm text-slate-700 leading-relaxed">
-                Head office in Muswell Hill, London, with friendly support across Oxford, Canterbury, Bristol, Cambridge, and
-                Ashford. We can arrange home visits where helpful.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {contactPoints.map((item) => (
-                <div key={item.label} className="rounded-2xl border border-slate-200 bg-white p-4 flex flex-col gap-2">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-[#0f3c5d]">
-                    {item.icon}
-                    <span>{item.label}</span>
+              <div className="space-y-6">
+                {[
+                  { icon: BookOpen, title: "Life stories unfold", detail: "Timelines that capture milestones, adventures, and the little moments that made them who they were." },
+                  { icon: ShieldCheck, title: "Your privacy, your rules", detail: "You control who sees what. Share with close family, invite friends, or keep it completely private." },
+                  { icon: Heart, title: "Built for everyone", detail: "Large text, clear navigation, and thoughtful design so grandparents and grandchildren can both feel comfortable." }
+                ].map(({ icon: Icon, title, detail }) => (
+                  <div key={title} className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-white border border-[#C7D6E2] flex items-center justify-center text-[#1B3B5F] flex-shrink-0">
+                      <Icon className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-[#1B3B5F] font-semibold text-lg mb-1">
+                        {title}
+                      </h3>
+                      <p className="text-slate-700 leading-relaxed">
+                        {detail}
+                      </p>
+                    </div>
                   </div>
-                  {item.href ? (
-                    <Link href={item.href} className="text-sm text-[#1B3B5F] hover:underline">
-                      {item.value}
-                    </Link>
-                  ) : (
-                    <p className="text-sm text-slate-700">{item.value}</p>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button asChild className="rounded-full bg-[#1B3B5F] hover:bg-[#16304d] text-white px-6">
-                <Link href="/auth?mode=signup">Create a memorial page</Link>
-              </Button>
-              <Button
-                asChild
-                variant="outline"
-                className="rounded-full border-2 border-[#1B3B5F] text-[#1B3B5F] hover:bg-[#1B3B5F] hover:text-white px-6"
-              >
-                <Link href="mailto:info@sandalwoodmemorials.co.uk">Email the team</Link>
-              </Button>
+            <div className="relative h-[500px] rounded-3xl overflow-hidden shadow-xl">
+              <Image
+                src="/elderly-woman-reading.png"
+                alt="Digital remembrance"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
             </div>
           </div>
         </div>
       </section>
 
-      <section className="bg-[#0f3c5d] text-white">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 lg:py-20 flex flex-col lg:flex-row items-center gap-6 lg:gap-10">
-          <div className="flex-1 space-y-3">
-            <p className="text-sm font-semibold uppercase tracking-wide text-white/80">Here for you</p>
-            <h3 className="font-serif text-3xl sm:text-4xl font-medium leading-tight">
-              Ready when you are — for the stone, the story, or both.
-            </h3>
-            <p className="text-lg text-white/90 leading-relaxed">
-              Whether you need measured guidance on memorial masonry or a calm digital space to gather tributes, we will
-              keep every step clear and kind. Speak to us, or begin your memorial online today.
-            </p>
+      {/* Contact & Support */}
+      <section className="py-16 lg:py-24 bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div className="space-y-8">
+              <div>
+                <h2 className="font-serif text-3xl lg:text-4xl font-semibold text-[#1B3B5F] mb-4">
+                  Here when you need us
+                </h2>
+                <p className="text-lg text-slate-700 leading-relaxed">
+                  Our London office is your home base, but we support families across Oxford, Canterbury, Bristol, Cambridge, and Ashford. Sometimes a home visit or a quiet chat over coffee is exactly what's needed.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {contactPoints.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-slate-200 bg-[#F5F5F0] p-6 flex flex-col gap-3">
+                    <div className="flex items-center gap-3 text-[#1B3B5F]">
+                      {item.icon}
+                      <span className="font-semibold">{item.label}</span>
+                    </div>
+                    {item.href ? (
+                      <Link href={item.href} className="text-slate-700 hover:text-[#1B3B5F] hover:underline transition-colors">
+                        {item.value}
+                      </Link>
+                    ) : (
+                      <p className="text-slate-700">{item.value}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-[#F5F5F0] rounded-3xl p-8 lg:p-12 border border-slate-200">
+              <h3 className="font-serif text-2xl font-semibold text-[#1B3B5F] mb-6">
+                Ready to begin?
+              </h3>
+              <p className="text-slate-700 leading-relaxed mb-8">
+                Grief has no timeline, and neither do we. Whether you need help with a memorial stone today or want to preserve memories for tomorrow, we're here to support you.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button asChild className="rounded-full bg-[#1B3B5F] hover:bg-[#16304d] text-white px-6 py-3">
+                  <Link href="/create">Start a memorial</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="rounded-full border-2 border-[#1B3B5F] text-[#1B3B5F] hover:bg-[#1B3B5F] hover:text-white px-6 py-3"
+                >
+                  <Link href="tel:+442030034855">Call 020 3003 4855</Link>
+                </Button>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <Button asChild className="rounded-full bg-white text-[#0f3c5d] hover:bg-slate-100 px-6">
-              <Link href="tel:+442030034855">Call 020 3003 4855</Link>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-16 lg:py-24 bg-gradient-to-br from-[#1B3B5F] via-[#16304d] to-[#0f243d] text-white">
+        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 text-center space-y-8">
+          <h2 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold">
+            Let's honour them together
+          </h2>
+          <p className="text-lg sm:text-xl text-white/90 leading-relaxed max-w-2xl mx-auto">
+            Begin with a free memorial page. Share memories, gather tributes, and create a peaceful space that helps your family heal. We're here every step of the way.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <Button
+              size="lg"
+              className="bg-white text-[#1B3B5F] hover:bg-slate-100 px-8 py-4 text-lg font-medium rounded-full shadow-lg"
+              asChild
+            >
+              <Link href="/create">Start creating now</Link>
             </Button>
             <Button
-              asChild
+              size="lg"
               variant="outline"
-              className="rounded-full border-2 border-white text-white hover:bg-white hover:text-[#0f3c5d] px-6"
+              className="border-2 border-white text-white hover:bg-white hover:text-[#1B3B5F] px-8 py-4 text-lg font-medium rounded-full"
+              asChild
             >
-              <Link href="/create">Start a memorial</Link>
+              <Link href="/pricing">View pricing plans</Link>
             </Button>
           </div>
+          <p className="text-sm text-white/70 pt-2">No credit card required</p>
         </div>
       </section>
     </div>

@@ -18,7 +18,7 @@ export default function Footer() {
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-12 text-slate-800">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Sandalwood Memories" width={80} height={80} />
+            <Image src="/sandalwood-memories-logo.png" alt="Sandalwood Memories" width={80} height={80} />
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -38,8 +38,8 @@ export default function Footer() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#1B3B5F]">Product</h3>
-            <ul className="space-y-2 text-sm text-slate-800">
+            <h3 className="text-base font-semibold text-[#1B3B5F]">Product</h3>
+            <ul className="space-y-2 text-base text-slate-800">
               <li>
                 <Link href="/features" className="hover:text-[#1B3B5F] transition-colors">
                   What we offer
@@ -59,8 +59,8 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#1B3B5F]">Resources</h3>
-            <ul className="space-y-2 text-sm text-slate-800">
+            <h3 className="text-base font-semibold text-[#1B3B5F]">Resources</h3>
+            <ul className="space-y-2 text-base text-slate-800">
               <li>
                 <Link href="/memorial" className="hover:text-[#1B3B5F] transition-colors">
                   Memorial examples
@@ -80,8 +80,8 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#1B3B5F]">Company</h3>
-            <ul className="space-y-2 text-sm text-slate-800">
+            <h3 className="text-base font-semibold text-[#1B3B5F]">Company</h3>
+            <ul className="space-y-2 text-base text-slate-800">
               <li>
                 <Link href="/about" className="hover:text-[#1B3B5F] transition-colors">
                   About
@@ -101,11 +101,11 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-[#1B3B5F]">Need help?</h3>
-            <p className="text-sm text-slate-800 leading-relaxed">
+            <h3 className="text-base font-semibold text-[#1B3B5F]">Need help?</h3>
+            <p className="text-base text-slate-800 leading-relaxed">
               We’re here to support you as you create a space for remembrance.
             </p>
-            <Link href="/contact" className="text-sm font-semibold text-[#1B3B5F] hover:underline">
+            <Link href="/contact" className="text-base font-semibold text-[#1B3B5F] hover:underline">
               Contact the team
             </Link>
           </div>

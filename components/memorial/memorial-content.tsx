@@ -104,8 +104,8 @@ export default function MemorialContent({
       {memorial.biography && (
         <section className="py-8 md:py-12">
           <div className="mx-auto max-w-3xl px-4 md:px-6">
-            <h2 className="font-serif text-xl md:text-2xl font-medium text-foreground">About</h2>
-            <div className="mt-3 md:mt-4 leading-relaxed text-muted-foreground space-y-3 md:space-y-4 text-base md:text-base">
+            <h2 className="font-serif text-2xl md:text-3xl font-medium text-foreground">About</h2>
+            <div className="mt-3 md:mt-4 leading-relaxed text-muted-foreground space-y-3 md:space-y-4 text-lg md:text-xl">
               {memorial.biography.split("\n\n").map((paragraph, index) => (
                 <p key={index}>{paragraph}</p>
               ))}
@@ -123,7 +123,6 @@ export default function MemorialContent({
                   window.dispatchEvent(event)
                 }}
               >
-                <div className="h-4 w-4 mr-2">✏️</div>
                 Edit biography
               </Button>
             )}
@@ -138,7 +137,7 @@ export default function MemorialContent({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 md:mb-12 gap-4">
               <div className="text-center sm:text-left flex-1">
                 <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Life Journey</h2>
-                <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Scroll through the moments that made their life extraordinary</p>
+                <p className="mt-1 md:mt-2 text-muted-foreground text-base md:text-lg">Scroll through the moments that made their life extraordinary</p>
               </div>
               {(memorial?.isOwner || user?.id === memorial?.created_by) && (
                 <Button
@@ -173,7 +172,7 @@ export default function MemorialContent({
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 md:mb-8 gap-4">
               <div>
                 <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Gallery</h2>
-                <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Photos and videos celebrating their life</p>
+                <p className="mt-1 md:mt-2 text-muted-foreground text-base md:text-lg">Photos and videos celebrating their life</p>
               </div>
               {(memorial?.isOwner || user?.id === memorial?.created_by) && (
                 <Button
@@ -200,7 +199,7 @@ export default function MemorialContent({
           <div className="mx-auto max-w-4xl px-4 md:px-6">
             <div className="text-center mb-8 md:mb-12">
               <h2 className="font-serif text-xl md:text-2xl lg:text-3xl font-medium text-foreground">Tributes</h2>
-              <p className="mt-1 md:mt-2 text-muted-foreground text-sm md:text-base">Share your memories and condolences</p>
+              <p className="mt-1 md:mt-2 text-muted-foreground text-base md:text-lg">Share your memories and condolences</p>
             </div>
 
             {/* Tribute Form */}

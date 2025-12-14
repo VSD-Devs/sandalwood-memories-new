@@ -23,7 +23,7 @@ export default function ProfilePage() {
               <CardTitle>Profile</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-gray-600">Please sign in to view your profile.</p>
+              <p className="text-base text-gray-600">Please sign in to view your profile.</p>
               <div className="mt-4">
                 <Link href="/">
                   <Button>Go home</Button>

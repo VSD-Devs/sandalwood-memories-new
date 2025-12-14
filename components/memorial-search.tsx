@@ -98,7 +98,7 @@ export function MemorialSearch({ initialResults = [], limit = 12, heading, subhe
             <Button
               variant="ghost"
               onClick={clearSearch}
-              className="text-sm text-slate-700 hover:text-[#1B3B5F] px-3"
+              className="text-base text-slate-700 hover:text-[#1B3B5F] px-3"
             >
               Clear search
             </Button>
@@ -132,7 +132,7 @@ export function MemorialSearch({ initialResults = [], limit = 12, heading, subhe
           </Button>
         </form>
 
-        {error && <p className="text-sm text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-3">{error}</p>}
+        {error && <p className="text-base text-rose-700 bg-rose-50 border border-rose-100 rounded-lg p-3">{error}</p>}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -170,9 +170,9 @@ export function MemorialSearch({ initialResults = [], limit = 12, heading, subhe
                   {memorial.full_name}
                 </h3>
               </Link>
-              {memorial.title && <p className="text-sm text-slate-600 line-clamp-2">{memorial.title}</p>}
+              {memorial.title && <p className="text-base text-slate-600 line-clamp-2">{memorial.title}</p>}
 
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+              <div className="flex flex-wrap items-center gap-3 text-base text-slate-500">
                 {memorial.burial_location && (
                   <span className="inline-flex items-center gap-1">
                     <MapPin className="h-4 w-4" aria-hidden />
@@ -210,6 +210,7 @@ export function MemorialSearch({ initialResults = [], limit = 12, heading, subhe
     </div>
   )
 }
+
 
 
 

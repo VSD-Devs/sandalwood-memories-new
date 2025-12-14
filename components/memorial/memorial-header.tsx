@@ -182,7 +182,7 @@ export default function MemorialHeader({
             <h1 className="mt-4 md:mt-6 font-serif text-2xl font-medium text-foreground md:text-5xl leading-tight px-2">
               {memorial.full_name}
             </h1>
-            <div className="mt-2 md:mt-3 flex items-center gap-2 text-muted-foreground text-sm md:text-base px-4">
+            <div className="mt-2 md:mt-3 flex items-center gap-2 text-muted-foreground text-base md:text-lg px-4">
               <Calendar className="h-4 w-4 flex-shrink-0" />
               <span className="text-center">
                 {memorial.birth_date ? format(new Date(memorial.birth_date), "d MMM yyyy") : "Unknown"} — {memorial.death_date ? format(new Date(memorial.death_date), "d MMM yyyy") : "Unknown"}
