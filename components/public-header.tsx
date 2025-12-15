@@ -46,12 +46,12 @@ export default function PublicHeader() {
         <div className="flex items-center justify-between h-16 gap-4">
           <Link href="/" className="flex items-center gap-3">
             <Image
-              src="/sandalwood-memories-logo.png"
+              src="/sandalwood-memories-logo2.png"
               alt="Sandalwood Memories"
-              width={150}
-              height={48}
+              width={180}
+              height={60}
+              className="h-14 w-auto"
               priority
-              className="h-10 w-auto"
             />
           </Link>
 

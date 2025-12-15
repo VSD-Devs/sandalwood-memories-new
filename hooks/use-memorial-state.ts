@@ -178,10 +178,10 @@ export function useMemorialState(identifier: string) {
               'Cache-Control': 'public, max-age=60'
             }
           }).catch(() => null),
-          fetch(`/api/memorials/${memorialData.id}/tributes`, { 
+          fetch(`/api/memorials/${memorialData.id}/tributes`, {
             credentials: 'include',
             headers: {
-              'Cache-Control': 'public, max-age=30'
+              'Cache-Control': 'no-cache'
             }
           }).catch(() => null)
         ])
@@ -508,7 +508,15 @@ export function useMemorialState(identifier: string) {
     if (!memorial?.id) return
 
     try {
-      const res = await fetch(`/api/memorials/${memorial.id}/tributes`, { credentials: 'include' })
+      // Add cache-busting headers to ensure we get fresh data
+      const res = await fetch(`/api/memorials/${memorial.id}/tributes?t=${Date.now()}`, {
+        credentials: 'include',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      })
       if (res.ok) {
         const data = await res.json()
         setTributes(Array.isArray(data) ? data : [])
@@ -546,3 +554,5 @@ export function useMemorialState(identifier: string) {
     refreshTributes,
   }
 }
+
+

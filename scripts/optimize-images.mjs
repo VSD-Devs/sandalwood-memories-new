@@ -125,3 +125,5 @@ async function optimizeImages() {
 
 // Run the optimization
 optimizeImages()
+
+

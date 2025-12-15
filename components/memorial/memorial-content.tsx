@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import dynamic from "next/dynamic"
 // webpackChunkName comments are used for better bundle splitting
 import { Plus } from "lucide-react"
@@ -98,6 +99,17 @@ export default function MemorialContent({
   onTributeDeleted,
   user
 }: MemorialContentProps) {
+  const [isTimelineModalOpen, setIsTimelineModalOpen] = useState(false)
+
+  const handleTimelineModalOpen = () => {
+    setIsTimelineModalOpen(true)
+    onTimelineModalOpen()
+  }
+
+  const handleTimelineModalClose = () => {
+    setIsTimelineModalOpen(false)
+  }
+
   return (
     <>
       {/* Biography */}
@@ -141,7 +153,7 @@ export default function MemorialContent({
               </div>
               {(memorial?.isOwner || user?.id === memorial?.created_by) && (
                 <Button
-                  onClick={onTimelineModalOpen}
+                  onClick={handleTimelineModalOpen}
                   className="bg-[#1B3B5F] hover:bg-[#16304d] text-white h-11 md:h-10 px-4 md:px-3 touch-manipulation w-full sm:w-auto"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -154,8 +166,8 @@ export default function MemorialContent({
               canEdit={memorial?.isOwner || user?.id === memorial?.created_by}
               media={media}
               onCountChange={onTimelineCountChange}
-              externalModalOpen={false}
-              onExternalModalClose={() => {}}
+              externalModalOpen={isTimelineModalOpen}
+              onExternalModalClose={handleTimelineModalClose}
               onMediaUpload={(newMedia) => {
                 // This will be handled by parent component
                 const event = new CustomEvent('mediaUpload', { detail: { newMedia } })
@@ -223,3 +235,5 @@ export default function MemorialContent({
     </>
   )
 }
+
+

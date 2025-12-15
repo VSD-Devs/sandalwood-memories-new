@@ -18,7 +18,13 @@ export default function Footer() {
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 space-y-12 text-slate-800">
         <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/sandalwood-memories-logo.png" alt="Sandalwood Memories" width={80} height={80} />
+            <Image
+              src="/sandalwood-memories-logo2.png"
+              alt="Sandalwood Memories"
+              width={180}
+              height={60}
+              className="h-12 w-auto"
+            />
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -112,7 +118,7 @@ export default function Footer() {
         </div>
 
         <div className="flex flex-col gap-3 border-t border-[#e8d9c9] pt-6 text-base text-slate-800 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Sandalwood Memories. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Memorial Platform. All rights reserved.</p>
           <div className="flex gap-4 text-base">
             <Link href="/legal/privacy" className="hover:text-[#1B3B5F] transition-colors">
               Privacy

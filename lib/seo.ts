@@ -3,9 +3,9 @@ import type { Metadata } from "next"
 const rawSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://sandalwoodmemories.com").trim()
 export const siteUrl = rawSiteUrl.endsWith("/") ? rawSiteUrl.slice(0, -1) : rawSiteUrl
 
-export const siteName = "Sandalwood Memories"
+export const siteName = "Memorial Platform"
 export const defaultDescription =
-  "Create calm, private digital memorial pages with Sandalwood Memories. Invite family, gather stories, and share photos with accessible, UK-friendly design."
+  "Create calm, private digital memorial pages. Invite family, gather stories, and share photos with accessible, UK-friendly design."
 
 const defaultImagePath = "/memorial-field.png"
 
@@ -15,6 +15,10 @@ const baseMetadata: Metadata = {
   description: defaultDescription,
   applicationName: siteName,
   generator: "Next.js",
+  icons: {
+    icon: "/sandalwood-memories-logo2.png",
+    apple: "/sandalwood-memories-logo2.png",
+  },
   keywords: [
     "digital memorial",
     "online memorial",
@@ -116,6 +120,7 @@ export function buildMetadata(options: BuildMetadataOptions = {}): Metadata {
     },
   }
 }
+
 
 
 

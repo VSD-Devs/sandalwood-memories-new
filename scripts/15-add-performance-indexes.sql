@@ -21,3 +21,5 @@ CREATE INDEX IF NOT EXISTS idx_timeline_events_event_date ON timeline_events(eve
 
 -- Index for timeline events by category (for filtering by event type)
 CREATE INDEX IF NOT EXISTS idx_timeline_events_category ON timeline_events(category);
+
+

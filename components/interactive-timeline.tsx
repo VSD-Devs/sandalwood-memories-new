@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ChevronLeft, ChevronRight, Star, Heart, Award, Baby, Sparkles, Plus, Calendar, Upload, ImageIcon, Video, FileText, Link, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, Star, Heart, Award, Baby, Sparkles, Plus, Calendar, Upload, ImageIcon, Video, FileText, Link, X, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -76,6 +77,10 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
 
   // Modal and form state
   const [isModalOpen, setIsModalOpen] = useState(false)
+
+  // Delete confirmation state
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null)
 
   // Handle external modal control - only set when opening externally, not when closing internally
   useEffect(() => {
@@ -398,6 +403,50 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
     return youtubeRegex.test(url)
   }
 
+  // Delete event handler
+  const handleDeleteEvent = (eventId: string) => {
+    setEventToDelete(eventId)
+    setIsDeleteDialogOpen(true)
+  }
+
+  // Confirm delete event
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete || !memorialId) return
+
+    try {
+      const response = await fetch(`/api/memorials/${memorialId}/timeline/${eventToDelete}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to delete timeline event')
+      }
+
+      // Update events list by removing the deleted event
+      const updatedEvents = events.filter(event => event.id !== eventToDelete)
+      onEventsChange?.(updatedEvents)
+
+      // Show success message
+      toast({
+        title: "Memory removed",
+        description: "The memory has been removed from the timeline.",
+      })
+
+    } catch (error) {
+      console.error('Failed to delete timeline event:', error)
+      toast({
+        title: "Failed to remove memory",
+        description: error instanceof Error ? error.message : "Please try again later.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsDeleteDialogOpen(false)
+      setEventToDelete(null)
+    }
+  }
+
   // Transform events to include year and image
   const transformedEvents = events
     .map((event) => {
@@ -558,10 +607,21 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
 
                 {/* Content */}
                 <div className="flex flex-col space-y-4 md:space-y-6">
-                  <div>
+                  <div className="flex items-center justify-between">
                     <span className="text-3xl md:text-4xl lg:text-5xl font-serif font-light text-[#1B3B5F]/80 leading-none tracking-tight">
                       {activeEvent.year}
                     </span>
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteEvent(activeEvent.id)}
+                        className="h-8 w-8 p-0 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                        aria-label="Delete this memory"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                   <div className="space-y-3 md:space-y-4">
                     <h3 className="font-serif text-lg md:text-2xl lg:text-3xl text-slate-900 font-light leading-tight">
@@ -909,6 +969,27 @@ export function InteractiveTimeline({ events, media, canEdit = false, memorialId
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this memory?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently remove this memory from the timeline.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setEventToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteEvent}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Remove Memory
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

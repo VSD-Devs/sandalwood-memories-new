@@ -224,3 +224,5 @@ export default function MemorialClient({ identifier }: { identifier: string }) {
     </div>
   )
 }
+
+

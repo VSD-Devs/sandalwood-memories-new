@@ -138,14 +138,14 @@ function AuthPageContent() {
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-50">
       <div className="grid min-h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] grid-cols-1 lg:grid-cols-2">
-        <div className="order-2 flex items-center justify-center bg-white px-6 py-12 sm:px-12 lg:order-1 lg:px-16 lg:py-16 lg:max-h-[calc(100vh-4rem)] overflow-y-auto">
-          <div className="w-full max-w-md space-y-8">
-            <Link href="/" className="inline-block text-base font-medium text-slate-600 hover:text-[#0f3c5d] transition-colors">
+        <div className="order-2 flex items-center justify-center bg-white px-4 py-8 sm:px-12 lg:order-1 lg:px-16 lg:py-16 lg:max-h-[calc(100vh-4rem)] overflow-y-auto">
+          <div className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8">
+            <Link href="/" className="inline-block text-base font-medium text-slate-600 hover:text-[#0f3c5d] transition-colors touch-manipulation">
               ← Back to home
             </Link>
 
             <div className="space-y-2">
-              <h1 className="text-4xl sm:text-5xl font-semibold text-slate-900 leading-tight">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold text-slate-900 leading-tight">
                 {resetStep === "request"
                   ? "Reset your password"
                   : resetStep === "confirm"
@@ -154,7 +154,7 @@ function AuthPageContent() {
                       ? "Welcome back"
                       : "Create your account"}
               </h1>
-              <p className="text-lg text-slate-600">
+              <p className="text-base sm:text-lg text-slate-600">
                 {resetStep === "request"
                   ? "Enter your email and we'll send you a reset token."
                   : resetStep === "confirm"
@@ -176,10 +176,10 @@ function AuthPageContent() {
               </div>
             ) : null}
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {showName ? (
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-base font-medium text-slate-700">
+                  <Label htmlFor="name" className="text-sm sm:text-base font-medium text-slate-700">
                     Full name
                   </Label>
                   <Input
@@ -188,14 +188,15 @@ function AuthPageContent() {
                     placeholder="Enter your full name"
                     value={formData.name}
                     onChange={(event) => updateField("name", event.target.value)}
-                    className="h-12 text-base"
+                    className="h-12 sm:h-12 text-base touch-manipulation"
                     autoComplete="name"
+                    inputMode="text"
                   />
                 </div>
               ) : null}
 
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-base font-medium text-slate-700">
+                <Label htmlFor="email" className="text-sm sm:text-base font-medium text-slate-700">
                   Email
                 </Label>
                 <Input
@@ -204,8 +205,9 @@ function AuthPageContent() {
                   placeholder="name@example.com"
                   value={formData.email}
                   onChange={(event) => updateField("email", event.target.value)}
-                  className="h-12 text-base"
+                  className="h-12 sm:h-12 text-base touch-manipulation"
                   autoComplete={mode === "signin" ? "email" : "username"}
+                  inputMode="email"
                   required
                 />
               </div>
@@ -213,7 +215,7 @@ function AuthPageContent() {
               {resetStep === "confirm" ? (
                 <>
                   <div className="space-y-2">
-                    <Label htmlFor="resetToken" className="text-base font-medium text-slate-700">
+                    <Label htmlFor="resetToken" className="text-sm sm:text-base font-medium text-slate-700">
                       Reset token
                     </Label>
                     <Input
@@ -222,12 +224,13 @@ function AuthPageContent() {
                       placeholder="Paste the code from your email"
                       value={formData.resetToken}
                       onChange={(event) => updateField("resetToken", event.target.value)}
-                      className="h-12 text-base"
+                      className="h-12 sm:h-12 text-base touch-manipulation"
+                      inputMode="text"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="newPassword" className="text-base font-medium text-slate-700">
+                    <Label htmlFor="newPassword" className="text-sm sm:text-base font-medium text-slate-700">
                       New password
                     </Label>
                     <Input
@@ -236,12 +239,13 @@ function AuthPageContent() {
                       placeholder="Choose a fresh password"
                       value={formData.newPassword}
                       onChange={(event) => updateField("newPassword", event.target.value)}
-                      className="h-12 text-base"
+                      className="h-12 sm:h-12 text-base touch-manipulation"
+                      inputMode="text"
                       required
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmNewPassword" className="text-base font-medium text-slate-700">
+                    <Label htmlFor="confirmNewPassword" className="text-sm sm:text-base font-medium text-slate-700">
                       Confirm new password
                     </Label>
                     <Input
@@ -250,7 +254,8 @@ function AuthPageContent() {
                       placeholder="Re-enter the new password"
                       value={formData.confirmNewPassword}
                       onChange={(event) => updateField("confirmNewPassword", event.target.value)}
-                      className="h-12 text-base"
+                      className="h-12 sm:h-12 text-base touch-manipulation"
+                      inputMode="text"
                       required
                     />
                   </div>
@@ -269,7 +274,7 @@ function AuthPageContent() {
                           setError("")
                           setInfo("")
                         }}
-                        className="text-sm font-medium text-[#0f3c5d] hover:underline"
+                        className="text-sm font-medium text-[#0f3c5d] hover:underline touch-manipulation min-h-[44px] py-1"
                       >
                         Forgot password?
                       </button>
@@ -281,8 +286,9 @@ function AuthPageContent() {
                     placeholder={mode === "signin" ? "Enter your password" : "Create a password"}
                     value={formData.password}
                     onChange={(event) => updateField("password", event.target.value)}
-                    className="h-12 text-base"
+                    className="h-12 sm:h-12 text-base touch-manipulation"
                     autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                    inputMode="text"
                     required
                   />
                 </div>
@@ -290,7 +296,7 @@ function AuthPageContent() {
 
               {resetStep === "none" && mode === "signup" ? (
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword" className="text-base font-medium text-slate-700">
+                  <Label htmlFor="confirmPassword" className="text-sm sm:text-base font-medium text-slate-700">
                     Confirm password
                   </Label>
                   <Input
@@ -299,8 +305,9 @@ function AuthPageContent() {
                     placeholder="Re-enter your password"
                     value={formData.confirmPassword}
                     onChange={(event) => updateField("confirmPassword", event.target.value)}
-                    className="h-12 text-base"
+                    className="h-12 sm:h-12 text-base touch-manipulation"
                     autoComplete="new-password"
+                    inputMode="text"
                     required
                   />
                 </div>
@@ -308,7 +315,7 @@ function AuthPageContent() {
 
               <Button
                 type="submit"
-                className="w-full h-12 text-base font-semibold bg-[#0f3c5d] text-white hover:bg-[#0c304c]"
+                className="w-full h-12 sm:h-12 text-base font-semibold bg-[#0f3c5d] text-white hover:bg-[#0c304c] touch-manipulation rounded-lg sm:rounded-md"
                 disabled={working}
               >
                 {resetStep === "request"
@@ -323,7 +330,7 @@ function AuthPageContent() {
 
             <div className="text-center">
               {resetStep === "none" ? (
-                <p className="text-base text-slate-600">
+                <p className="text-sm sm:text-base text-slate-600">
                   {mode === "signin" ? (
                     <>
                       Don't have an account?{" "}
@@ -333,7 +340,7 @@ function AuthPageContent() {
                           setMode("signup")
                           setResetStep("none")
                         }}
-                        className="font-semibold text-[#0f3c5d] hover:underline"
+                        className="font-semibold text-[#0f3c5d] hover:underline touch-manipulation min-h-[44px] py-2"
                       >
                         Sign up
                       </button>
@@ -347,7 +354,7 @@ function AuthPageContent() {
                           setMode("signin")
                           setResetStep("none")
                         }}
-                        className="font-semibold text-[#0f3c5d] hover:underline"
+                        className="font-semibold text-[#0f3c5d] hover:underline touch-manipulation min-h-[44px] py-2"
                       >
                         Sign in
                       </button>
@@ -362,7 +369,7 @@ function AuthPageContent() {
                     setInfo("")
                     setError("")
                   }}
-                  className="text-base font-medium text-[#0f3c5d] hover:underline"
+                  className="text-sm sm:text-base font-medium text-[#0f3c5d] hover:underline touch-manipulation min-h-[44px] py-2"
                 >
                   ← Back to sign in
                 </button>
@@ -371,7 +378,7 @@ function AuthPageContent() {
           </div>
         </div>
 
-        <div className="relative order-1 min-h-[320px] bg-slate-100 lg:order-2 lg:h-[calc(100vh-4rem)]">
+        <div className="relative order-1 min-h-[280px] sm:min-h-[320px] bg-slate-100 lg:order-2 lg:h-[calc(100vh-4rem)]">
           <Image
             src="/air-balloons.webp"
             alt="Hot air balloons floating over calm hills"
@@ -381,14 +388,14 @@ function AuthPageContent() {
             sizes="(max-width: 1024px) 100vw, 50vw"
           />
           <div className="absolute inset-0 bg-gradient-to-l from-slate-900/60 via-slate-900/40 to-transparent" />
-          <div className="absolute inset-0 flex flex-col justify-end p-8 lg:p-12 text-white">
-            <div className="max-w-md space-y-4">
-              <p className="text-2xl font-semibold leading-tight">
+          <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 lg:p-12 text-white">
+            <div className="max-w-md space-y-3 sm:space-y-4">
+              <p className="text-xl sm:text-2xl font-semibold leading-tight">
                 "A gentle place to gather memories—calm, accessible, and easy to use."
               </p>
               <div className="space-y-1">
-                <p className="text-lg font-medium">Sarah Mitchell</p>
-                <p className="text-base text-white/80">Memorial Creator</p>
+                <p className="text-base sm:text-lg font-medium">Sarah Mitchell</p>
+                <p className="text-sm sm:text-base text-white/80">Memorial Creator</p>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { checkUsageLimits } from "@/lib/usage-limits"
 import UsageLimitModal from "@/components/usage-limit-modal"
 import { useRouter } from "next/navigation"
+import { useSwipeGesture, useIsMobile } from "@/hooks/use-mobile"
 
 interface MemorialData {
   name: string
@@ -36,6 +37,13 @@ export default function CreateMemorialPage() {
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const profileInputRef = useRef<HTMLInputElement | null>(null)
+  const isMobile = useIsMobile()
+
+  // Swipe gesture handlers
+  const { handleTouchStart, handleTouchEnd } = useSwipeGesture(
+    () => handleNext(), // Swipe left to go to next step
+    () => handlePrevious() // Swipe right to go to previous step
+  )
   const [limitModal, setLimitModal] = useState<{
     isOpen: boolean
     message: string
@@ -191,33 +199,35 @@ export default function CreateMemorialPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0]">
+    <div
+      className="min-h-screen bg-[#F5F5F0]"
+      onTouchStart={isMobile ? handleTouchStart : undefined}
+      onTouchEnd={isMobile ? handleTouchEnd : undefined}
+    >
       {/* Header */}
-      <header className="border-b border-slate-200 bg-white/85 backdrop-blur-md">
+      <header className="border-b border-slate-200 bg-white/85 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/memorial" className="flex items-center space-x-2">
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            <Link href="/memorial" className="flex items-center space-x-2 touch-manipulation min-h-[44px] py-2">
               <ArrowLeft className="h-5 w-5 text-slate-600" />
-              <Heart className="h-8 w-8 text-[#4A90A4]" />
-              <span className="font-serif font-bold text-2xl text-[#1B3B5F]">Sandalwood Memories</span>
             </Link>
             <div className="flex items-center space-x-4">
-              <div className="text-sm text-slate-600">Step {step} of 3</div>
+              <div className="text-sm text-slate-600 font-medium">Step {step} of 3</div>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-12">
         {/* Progress Bar */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
+        <div className="mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-3 sm:mb-2">
             <span className="text-sm font-medium text-[#1B3B5F]">Creating Memorial</span>
-            <span className="text-sm text-slate-600">{Math.round((step / 3) * 100)}% Complete</span>
+            <span className="text-xs sm:text-sm text-slate-600">{Math.round((step / 3) * 100)}% Complete</span>
           </div>
-          <div className="w-full bg-slate-200 rounded-full h-2">
+          <div className="w-full bg-slate-200 rounded-full h-2 sm:h-2">
             <div
-              className="bg-[#4A90A4] h-2 rounded-full transition-all duration-300"
+              className="bg-[#4A90A4] h-2 rounded-full transition-all duration-500 ease-out"
               style={{ width: `${(step / 3) * 100}%` }}
             ></div>
           </div>
@@ -225,44 +235,44 @@ export default function CreateMemorialPage() {
 
         {/* Step 1: Basic Information */}
         {step === 1 && (
-          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Tell Us About Your Loved One</CardTitle>
-              <CardDescription className="text-lg text-slate-600">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-2xl sm:rounded-3xl mx-0 sm:mx-auto animate-in slide-in-from-right-5 duration-300">
+            <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+              <CardTitle className="font-serif text-2xl sm:text-3xl text-[#1B3B5F]">Tell Us About Your Loved One</CardTitle>
+              <CardDescription className="text-base sm:text-lg text-slate-600">
                 Let's start with the basic information to create their memorial page.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6">
               {/* Page type */}
               <div>
                 <Label className="text-sm font-medium">Page type</Label>
                 <RadioGroup
                   value={memorialData.isAlive ? "alive" : "in_memory"}
                   onValueChange={(v) => handleInputChange("isAlive", v === "alive")}
-                  className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-3"
+                  className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3"
                 >
-                  <label className="flex items-center gap-3 border-2 rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[60px] touch-none transition-colors">
+                  <label className="flex items-center gap-3 border-2 rounded-lg sm:rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[64px] sm:min-h-[60px] touch-manipulation transition-colors">
                     <RadioGroupItem value="in_memory" id="in_memory" />
                     <div>
-                      <div className="font-medium text-base text-[#1B3B5F]">In memory</div>
-                      <div className="text-sm text-slate-600">For someone who has passed away</div>
+                      <div className="font-medium text-sm sm:text-base text-[#1B3B5F]">In memory</div>
+                      <div className="text-xs sm:text-sm text-slate-600">For someone who has passed away</div>
                     </div>
                   </label>
-                  <label className="flex items-center gap-3 border-2 rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[60px] touch-none transition-colors">
+                  <label className="flex items-center gap-3 border-2 rounded-lg sm:rounded-md p-4 cursor-pointer bg-white hover:border-[#4A90A4] min-h-[64px] sm:min-h-[60px] touch-manipulation transition-colors">
                     <RadioGroupItem value="alive" id="alive" />
                     <div>
-                      <div className="font-medium text-base text-[#1B3B5F]">Living tribute</div>
-                      <div className="text-sm text-slate-600">Celebrate someone who is alive</div>
+                      <div className="font-medium text-sm sm:text-base text-[#1B3B5F]">Living tribute</div>
+                      <div className="text-xs sm:text-sm text-slate-600">Celebrate someone who is alive</div>
                     </div>
                   </label>
                 </RadioGroup>
-                <div className="flex items-start gap-2 mt-2 text-xs text-slate-600" aria-live="polite">
+                <div className="flex items-start gap-2 mt-3 text-xs text-slate-600" aria-live="polite">
                   <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                   <span>You can switch this later. Choose "Living tribute" for someone who is alive.</span>
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-sm font-medium">
                     Full Name *
@@ -272,10 +282,13 @@ export default function CreateMemorialPage() {
                     placeholder="Enter their full name"
                     value={memorialData.name}
                     onChange={(e) => handleInputChange("name", e.target.value)}
-                    className="border-2 focus:border-[#4A90A4] h-12 text-base"
+                    className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation"
+                    inputMode="text"
+                    autoCapitalize="words"
+                    autoComplete="name"
                     required
                   />
-                  <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                  <div className="flex items-start gap-2 mt-2 text-xs text-slate-600" aria-live="polite">
                     <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                     <span>Use their full legal name for easier searching.</span>
                   </div>
@@ -289,7 +302,7 @@ export default function CreateMemorialPage() {
                     value={memorialData.subtitle || "no_subtitle"}
                     onValueChange={(value) => handleInputChange("subtitle", value === "no_subtitle" ? "" : value)}
                   >
-                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base">
+                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation min-h-[44px]">
                     <SelectValue placeholder="Select a subtitle or leave blank" />
                   </SelectTrigger>
                     <SelectContent>
@@ -325,57 +338,80 @@ export default function CreateMemorialPage() {
                 </div>
               </div>
 
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Birth Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
-                          !memorialData.birthDate && "text-slate-500",
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {memorialData.birthDate ? format(memorialData.birthDate, "PPP") : "Select birth date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={memorialData.birthDate}
-                        onSelect={(date) => {
-                          handleInputChange("birthDate", date)
-                          setDateInputs((prev) => ({
-                            ...prev,
-                            birth: date ? format(date, "yyyy-MM-dd") : "",
-                          }))
-                          setDateErrors((prev) => ({ ...prev, birth: "" }))
-                        }}
-                        fromYear={1800}
-                        toYear={new Date().getFullYear() + 5}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                  <div className="space-y-1">
-                    <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                  {isMobile ? (
+                    // Mobile: Use native date input
                     <Input
-                      placeholder="DD/MM/YYYY or YYYY"
-                      value={dateInputs.birth}
-                      onChange={(e) => handleDateTextChange("birth", e.target.value)}
-                      className="h-10"
-                      inputMode="numeric"
-                      aria-describedby={dateErrors.birth ? "birth-date-error" : undefined}
+                      type="date"
+                      value={memorialData.birthDate ? format(memorialData.birthDate, "yyyy-MM-dd") : ""}
+                      onChange={(e) => {
+                        const date = e.target.value ? new Date(e.target.value) : undefined
+                        if (date && isValid(date)) {
+                          handleInputChange("birthDate", date)
+                          setDateErrors((prev) => ({ ...prev, birth: "" }))
+                        } else if (!e.target.value) {
+                          handleInputChange("birthDate", undefined)
+                          setDateErrors((prev) => ({ ...prev, birth: "" }))
+                        }
+                      }}
+                      className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation"
+                      max={format(new Date(), "yyyy-MM-dd")}
                     />
-                    {dateErrors.birth ? (
-                      <p id="birth-date-error" className="text-xs text-red-600">{dateErrors.birth}</p>
-                    ) : (
-                      <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
-                    )}
-                  </div>
-                    <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                  ) : (
+                    // Desktop: Keep calendar popover
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
+                            !memorialData.birthDate && "text-slate-500",
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {memorialData.birthDate ? format(memorialData.birthDate, "PPP") : "Select birth date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={memorialData.birthDate}
+                          onSelect={(date) => {
+                            handleInputChange("birthDate", date)
+                            setDateInputs((prev) => ({
+                              ...prev,
+                              birth: date ? format(date, "yyyy-MM-dd") : "",
+                            }))
+                            setDateErrors((prev) => ({ ...prev, birth: "" }))
+                          }}
+                          fromYear={1800}
+                          toYear={new Date().getFullYear() + 5}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  {!isMobile && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                      <Input
+                        placeholder="DD/MM/YYYY or YYYY"
+                        value={dateInputs.birth}
+                        onChange={(e) => handleDateTextChange("birth", e.target.value)}
+                        className="h-10"
+                        inputMode="numeric"
+                        aria-describedby={dateErrors.birth ? "birth-date-error" : undefined}
+                      />
+                      {dateErrors.birth ? (
+                        <p id="birth-date-error" className="text-xs text-red-600">{dateErrors.birth}</p>
+                      ) : (
+                        <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
+                      )}
+                    </div>
+                  )}
+                    <div className="flex items-start gap-2 mt-2 text-xs text-slate-600" aria-live="polite">
                       <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                       <span>If you're unsure, month and year are perfectly fine.</span>
                     </div>
@@ -384,54 +420,77 @@ export default function CreateMemorialPage() {
                 {!memorialData.isAlive && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Date of Passing</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
-                          !memorialData.passedDate && "text-slate-500",
-                        )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {memorialData.passedDate ? format(memorialData.passedDate, "PPP") : "Select date of passing"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={memorialData.passedDate}
-                          onSelect={(date) => {
-                            handleInputChange("passedDate", date)
-                            setDateInputs((prev) => ({
-                              ...prev,
-                              pass: date ? format(date, "yyyy-MM-dd") : "",
-                            }))
-                            setDateErrors((prev) => ({ ...prev, pass: "" }))
-                          }}
-                          fromYear={1800}
-                          toYear={new Date().getFullYear() + 5}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                    {isMobile ? (
+                      // Mobile: Use native date input
                       <Input
-                        placeholder="DD/MM/YYYY or YYYY"
-                        value={dateInputs.pass}
-                        onChange={(e) => handleDateTextChange("pass", e.target.value)}
-                        className="h-10"
-                        inputMode="numeric"
-                        aria-describedby={dateErrors.pass ? "pass-date-error" : undefined}
+                        type="date"
+                        value={memorialData.passedDate ? format(memorialData.passedDate, "yyyy-MM-dd") : ""}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined
+                          if (date && isValid(date)) {
+                            handleInputChange("passedDate", date)
+                            setDateErrors((prev) => ({ ...prev, pass: "" }))
+                          } else if (!e.target.value) {
+                            handleInputChange("passedDate", undefined)
+                            setDateErrors((prev) => ({ ...prev, pass: "" }))
+                          }
+                        }}
+                        className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation"
+                        max={format(new Date(), "yyyy-MM-dd")}
                       />
-                      {dateErrors.pass ? (
-                        <p id="pass-date-error" className="text-xs text-red-600">{dateErrors.pass}</p>
-                      ) : (
-                        <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
-                      )}
-                    </div>
-                    <div className="flex items-start gap-2 mt-1 text-xs text-slate-600" aria-live="polite">
+                    ) : (
+                      // Desktop: Keep calendar popover
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal border-2 h-12 text-base focus:border-[#4A90A4]",
+                            !memorialData.passedDate && "text-slate-500",
+                          )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {memorialData.passedDate ? format(memorialData.passedDate, "PPP") : "Select date of passing"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={memorialData.passedDate}
+                            onSelect={(date) => {
+                              handleInputChange("passedDate", date)
+                              setDateInputs((prev) => ({
+                                ...prev,
+                                pass: date ? format(date, "yyyy-MM-dd") : "",
+                              }))
+                              setDateErrors((prev) => ({ ...prev, pass: "" }))
+                            }}
+                            fromYear={1800}
+                            toYear={new Date().getFullYear() + 5}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
+                    {!isMobile && (
+                      <div className="space-y-1">
+                        <Label className="text-xs text-slate-600">Prefer typing?</Label>
+                        <Input
+                          placeholder="DD/MM/YYYY or YYYY"
+                          value={dateInputs.pass}
+                          onChange={(e) => handleDateTextChange("pass", e.target.value)}
+                          className="h-10"
+                          inputMode="numeric"
+                          aria-describedby={dateErrors.pass ? "pass-date-error" : undefined}
+                        />
+                        {dateErrors.pass ? (
+                          <p id="pass-date-error" className="text-xs text-red-600">{dateErrors.pass}</p>
+                        ) : (
+                          <p className="text-xs text-slate-600">You can enter day, month, year or just the year.</p>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-start gap-2 mt-2 text-xs text-slate-600" aria-live="polite">
                       <Info className="h-3.5 w-3.5 mt-0.5 text-[#4A90A4]" aria-hidden="true" />
                       <span>Leave blank if you're not ready to share this yet.</span>
                     </div>
@@ -447,7 +506,7 @@ export default function CreateMemorialPage() {
                   value={memorialData.relationship}
                   onValueChange={(value) => handleInputChange("relationship", value)}
                 >
-                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base">
+                  <SelectTrigger className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation min-h-[44px]">
                     <SelectValue placeholder="Select your relationship" />
                   </SelectTrigger>
                   <SelectContent>
@@ -466,14 +525,17 @@ export default function CreateMemorialPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-6">
-                <div className="text-xs text-slate-600">
+              <div className="flex items-center justify-between pt-4 sm:pt-6">
+                <div className="text-xs text-slate-600 hidden sm:block">
                   You can change anything later.
+                </div>
+                <div className="text-xs text-slate-600 sm:hidden">
+                  You can change anything later
                 </div>
                 <Button
                   onClick={handleNext}
                   disabled={!memorialData.name}
-                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
+                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-6 sm:px-8 rounded-full touch-manipulation touch-feedback min-h-[44px]"
                   size="lg"
                 >
                   Continue
@@ -485,14 +547,14 @@ export default function CreateMemorialPage() {
 
         {/* Step 2: Biography & Story */}
         {step === 2 && (
-          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
-              <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Share Their Story</CardTitle>
-              <CardDescription className="text-lg text-slate-600">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-2xl sm:rounded-3xl mx-0 sm:mx-auto animate-in slide-in-from-right-5 duration-300">
+              <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+              <CardTitle className="font-serif text-2xl sm:text-3xl text-[#1B3B5F]">Share Their Story</CardTitle>
+              <CardDescription className="text-base sm:text-lg text-slate-600">
                 Tell us about their life, personality, and what made them special.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6">
               <div className="space-y-4">
                 <Label className="text-sm font-medium">
                   Life Story & Biography
@@ -523,7 +585,7 @@ export default function CreateMemorialPage() {
                     handleInputChange("burialLocation", value === "not_specified" ? null : value);
                   }}
                 >
-                  <SelectTrigger className="border-2 focus:border-primary h-12 text-base">
+                  <SelectTrigger className="border-2 focus:border-primary h-12 text-base touch-manipulation min-h-[44px]">
                     <SelectValue placeholder="Select location type or specify custom" />
                   </SelectTrigger>
                   <SelectContent>
@@ -551,7 +613,10 @@ export default function CreateMemorialPage() {
                       placeholder="e.g., Highgate Cemetery, London — Plot 24B"
                       value={memorialData.burialLocation || ""}
                       onChange={(e) => handleInputChange("burialLocation", e.target.value)}
-                      className="border-2 focus:border-[#4A90A4] h-12 text-base"
+                      className="border-2 focus:border-[#4A90A4] h-12 text-base touch-manipulation"
+                      inputMode="text"
+                      autoCapitalize="words"
+                      autoComplete="address-line1"
                     />
                   </div>
                 )}
@@ -559,14 +624,14 @@ export default function CreateMemorialPage() {
                 <p className="text-xs text-slate-600">Choose a general type or add specific details. Only share what the family is comfortable making public.</p>
               </div>
 
-              <div className="flex justify-between pt-6">
-                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full">
+              <div className="flex justify-between pt-4 sm:pt-6">
+                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full touch-manipulation touch-feedback min-h-[44px]">
                   Previous
                 </Button>
                 <Button
                   onClick={handleNext}
                   disabled={false}
-                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
+                  className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-6 sm:px-8 rounded-full touch-manipulation touch-feedback min-h-[44px]"
                   size="lg"
                 >
                   Continue
@@ -578,14 +643,14 @@ export default function CreateMemorialPage() {
 
         {/* Step 3: Images & Final Review */}
         {step === 3 && (
-          <Card className="border border-slate-100 shadow-lg bg-white rounded-3xl">
-            <CardHeader className="text-center pb-6">
-              <CardTitle className="font-serif text-3xl text-[#1B3B5F]">Add Photos & Review</CardTitle>
-              <CardDescription className="text-lg text-slate-600">
+          <Card className="border border-slate-100 shadow-lg bg-white rounded-2xl sm:rounded-3xl mx-0 sm:mx-auto animate-in slide-in-from-right-5 duration-300">
+            <CardHeader className="text-center pb-4 sm:pb-6 px-4 sm:px-6">
+              <CardTitle className="font-serif text-2xl sm:text-3xl text-[#1B3B5F]">Add Photos & Review</CardTitle>
+              <CardDescription className="text-base sm:text-lg text-slate-600">
                 Upload photos and review your memorial page before publishing.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-5 sm:space-y-6 px-4 sm:px-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Profile Photo</Label>
@@ -594,7 +659,7 @@ export default function CreateMemorialPage() {
                     <span>Square works best; choose a clear, well‑lit photo.</span>
                   </div>
                 <div
-                  className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#4A90A4] transition-colors cursor-pointer overflow-hidden"
+                  className="relative border-2 border-dashed border-slate-300 rounded-lg p-4 text-center hover:border-[#4A90A4] transition-colors cursor-pointer overflow-hidden touch-manipulation min-h-[120px] flex items-center justify-center"
                   onClick={() => profileInputRef.current?.click()}
                 >
                   {memorialData.profileImage ? (
@@ -679,19 +744,19 @@ export default function CreateMemorialPage() {
                 </div>
               </div>
 
-              <div className="flex justify-between pt-6">
-                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full">
+              <div className="flex flex-col sm:flex-row justify-between gap-4 pt-4 sm:pt-6">
+                <Button onClick={handlePrevious} variant="outline" size="lg" className="border-2 border-[#1B3B5F] !text-[#1B3B5F] hover:!bg-[#1B3B5F] hover:!text-white rounded-full touch-manipulation touch-feedback min-h-[44px] order-2 sm:order-1">
                   Previous
                 </Button>
-                <div className="flex space-x-4">
-                  <Button variant="outline" size="lg" className="flex items-center space-x-2 bg-transparent border-2 border-slate-300 !text-slate-600 rounded-full" disabled>
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 order-1 sm:order-2">
+                  <Button variant="outline" size="lg" className="flex items-center justify-center space-x-2 bg-transparent border-2 border-slate-300 !text-slate-600 rounded-full touch-manipulation touch-feedback min-h-[44px]" disabled>
                     <Eye className="h-4 w-4" />
                     <span>Preview</span>
                   </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-8 rounded-full"
+                    className="!bg-[#1B3B5F] hover:!bg-[#16304d] !text-white px-6 sm:px-8 rounded-full touch-manipulation touch-feedback min-h-[44px]"
                     size="lg"
                   >
                     {loading ? "Creating..." : memorialData.isAlive ? "Create Tribute Page" : "Create Memorial"}
